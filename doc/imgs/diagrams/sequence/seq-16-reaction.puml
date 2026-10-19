@@ -1,0 +1,28 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+hide footbox
+autonumber
+
+actor "注册用户" as User
+boundary "文章详情页界面" as UI <<边界类>>
+control "表情回应控制器" as Ctrl <<控制类>>
+entity "用户" as EUser <<实体类>>
+entity "评论" as EComment <<实体类>>
+entity "评论表情" as EReaction <<实体类>>
+
+User -> UI : 点击某条评论的表情按钮
+UI -> Ctrl : 切换表情回应(commentId, 类型)
+activate Ctrl
+Ctrl -> EUser : 获取当前用户
+EUser --> Ctrl : 用户信息
+Ctrl -> EComment : 查询评论
+EComment --> Ctrl : 评论信息
+Ctrl -> EReaction : 查询该用户是否已回应
+EReaction --> Ctrl : 回应记录
+Ctrl -> EReaction : 新增/取消表情回应
+EReaction --> Ctrl : 最新表情统计
+Ctrl --> UI : 更新后的表情统计
+deactivate Ctrl
+UI -> User : 刷新表情显示
+@enduml

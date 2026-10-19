@@ -1,0 +1,23 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+hide footbox
+autonumber
+
+actor "管理员" as Admin
+boundary "后台登录页界面" as UI <<边界类>>
+control "后台登录控制器" as Ctrl <<控制类>>
+entity "用户" as EUser <<实体类>>
+entity "会话" as ESession <<实体类>>
+
+Admin -> UI : 输入管理员账号与密码
+UI -> Ctrl : 提交后台登录(username, password)
+activate Ctrl
+Ctrl -> EUser : 校验账号密码与 is_staff
+EUser --> Ctrl : 校验通过（管理员）
+Ctrl -> ESession : 创建管理会话
+ESession --> Ctrl : 会话标识
+Ctrl --> UI : 进入后台首页
+deactivate Ctrl
+UI -> Admin : 显示后台管理首页
+@enduml

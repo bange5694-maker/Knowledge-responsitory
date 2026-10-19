@@ -1,0 +1,23 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+hide footbox
+autonumber
+
+actor "注册用户" as User
+boundary "顶部导航界面" as UI <<边界类>>
+control "登出控制器" as Ctrl <<控制类>>
+entity "用户" as EUser <<实体类>>
+entity "会话" as ESession <<实体类>>
+
+User -> UI : 点击「退出登录」
+UI -> Ctrl : 提交退出请求
+activate Ctrl
+Ctrl -> EUser : 获取当前用户
+EUser --> Ctrl : 用户信息
+Ctrl -> ESession : 清除登录会话
+ESession --> Ctrl : 清除完成
+Ctrl --> UI : 重定向登录页
+deactivate Ctrl
+UI -> User : 显示登录页
+@enduml

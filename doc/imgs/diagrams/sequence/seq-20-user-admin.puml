@@ -1,0 +1,25 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+hide footbox
+autonumber
+
+actor "管理员" as Admin
+boundary "用户管理界面" as UI <<边界类>>
+control "用户管理控制器" as Ctrl <<控制类>>
+entity "用户" as EUser <<实体类>>
+entity "第三方账号" as EOAuth <<实体类>>
+
+Admin -> UI : 查询/编辑用户（启用、禁用、改资料）
+UI -> Ctrl : 提交用户操作(userId, 操作)
+activate Ctrl
+Ctrl -> EUser : 查询用户
+EUser --> Ctrl : 用户信息
+Ctrl -> EOAuth : 查询第三方绑定
+EOAuth --> Ctrl : 绑定信息
+Ctrl -> EUser : 更新用户状态/资料
+EUser --> Ctrl : 保存结果
+Ctrl --> UI : 返回最新用户信息
+deactivate Ctrl
+UI -> Admin : 显示用户列表
+@enduml

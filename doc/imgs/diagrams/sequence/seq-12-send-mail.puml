@@ -1,0 +1,22 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+hide footbox
+autonumber
+
+boundary "邮件服务接口" as UI <<边界类>>
+control "邮件通知控制器" as Ctrl <<控制类>>
+entity "用户" as EUser <<实体类>>
+entity "邮件日志" as ELog <<实体类>>
+actor "邮件服务器" as Mail
+
+UI -> Ctrl : 发送验证邮件请求(邮箱, 类型)
+activate Ctrl
+Ctrl -> EUser : 查询收件人信息
+EUser --> Ctrl : 收件人信息
+Ctrl -> Mail : 提交邮件（SMTP）
+Mail --> Ctrl : 投递结果
+Ctrl -> ELog : 记录发送结果
+Ctrl --> UI : 返回提交结果
+deactivate Ctrl
+@enduml

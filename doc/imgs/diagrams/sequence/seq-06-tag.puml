@@ -1,0 +1,23 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+hide footbox
+autonumber
+
+actor "访客" as User
+boundary "标签页界面" as UI <<边界类>>
+control "标签浏览控制器" as Ctrl <<控制类>>
+entity "标签" as ETag <<实体类>>
+entity "文章" as EArticle <<实体类>>
+
+User -> UI : 点击标签
+UI -> Ctrl : 请求标签文章(slug, 页码)
+activate Ctrl
+Ctrl -> ETag : 按 slug 查询标签
+ETag --> Ctrl : 标签信息
+Ctrl -> EArticle : 查询该标签下已发布文章
+EArticle --> Ctrl : 文章列表
+Ctrl --> UI : 标签文章列表
+deactivate Ctrl
+UI -> User : 展示标签页
+@enduml

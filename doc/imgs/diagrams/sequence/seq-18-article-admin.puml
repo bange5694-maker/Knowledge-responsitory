@@ -1,0 +1,26 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+hide footbox
+autonumber
+
+actor "管理员" as Admin
+boundary "文章管理界面" as UI <<边界类>>
+control "文章管理控制器" as Ctrl <<控制类>>
+entity "文章" as EArticle <<实体类>>
+entity "分类" as ECategory <<实体类>>
+entity "标签" as ETag <<实体类>>
+
+Admin -> UI : 新增/编辑文章并提交
+UI -> Ctrl : 提交文章数据(title, body, 分类, 标签)
+activate Ctrl
+Ctrl -> ECategory : 校验分类
+ECategory --> Ctrl : 分类信息
+Ctrl -> ETag : 解析并创建/关联标签
+ETag --> Ctrl : 标签列表
+Ctrl -> EArticle : 保存文章（新增/更新）
+EArticle --> Ctrl : 文章编号
+Ctrl --> UI : 保存成功，刷新文章列表
+deactivate Ctrl
+UI -> Admin : 显示文章列表
+@enduml

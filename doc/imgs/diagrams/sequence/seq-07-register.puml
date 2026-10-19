@@ -1,0 +1,24 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+hide footbox
+autonumber
+
+actor "注册用户" as User
+boundary "注册页界面" as UI <<边界类>>
+control "注册控制器" as Ctrl <<控制类>>
+entity "用户" as EUser <<实体类>>
+actor "邮件服务器" as Mail
+
+User -> UI : 填写用户名、邮箱、密码并提交
+UI -> Ctrl : 提交注册(username, email, password)
+activate Ctrl
+Ctrl -> EUser : 检查用户名/邮箱是否已存在
+EUser --> Ctrl : 校验结果
+Ctrl -> EUser : 创建用户（is_active=False）
+EUser --> Ctrl : 用户编号
+Ctrl ->> Mail : 发送激活邮件(邮箱, 激活链接)
+Ctrl --> UI : 注册成功，提示验证邮箱
+deactivate Ctrl
+UI -> User : 显示注册结果页
+@enduml

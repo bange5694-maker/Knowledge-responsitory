@@ -1,0 +1,20 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+hide footbox
+autonumber
+
+actor "访客" as User
+boundary "友情链接页界面" as UI <<边界类>>
+control "友情链接控制器" as Ctrl <<控制类>>
+entity "友情链接" as ELinks <<实体类>>
+
+User -> UI : 访问友情链接页
+UI -> Ctrl : 请求友链列表
+activate Ctrl
+Ctrl -> ELinks : 查询启用的友链（按顺序）
+ELinks --> Ctrl : 友链列表
+Ctrl --> UI : 友链数据
+deactivate Ctrl
+UI -> User : 展示友情链接
+@enduml

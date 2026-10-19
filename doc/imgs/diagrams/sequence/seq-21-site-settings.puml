@@ -1,0 +1,26 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+hide footbox
+autonumber
+
+actor "管理员" as Admin
+boundary "站点设置界面" as UI <<边界类>>
+control "站点设置控制器" as Ctrl <<控制类>>
+entity "站点设置" as ESettings <<实体类>>
+entity "友情链接" as ELinks <<实体类>>
+entity "侧边栏" as ESideBar <<实体类>>
+
+Admin -> UI : 修改站点参数/友链/侧边栏并保存
+UI -> Ctrl : 提交配置(设置项, 友链, 侧边栏)
+activate Ctrl
+Ctrl -> ESettings : 保存站点设置
+ESettings --> Ctrl : 保存结果
+Ctrl -> ELinks : 保存友情链接
+ELinks --> Ctrl : 保存结果
+Ctrl -> ESideBar : 保存侧边栏
+ESideBar --> Ctrl : 保存结果
+Ctrl --> UI : 保存成功
+deactivate Ctrl
+UI -> Admin : 刷新站点设置页
+@enduml

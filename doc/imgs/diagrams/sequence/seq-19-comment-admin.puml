@@ -1,0 +1,25 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+hide footbox
+autonumber
+
+actor "管理员" as Admin
+boundary "评论管理界面" as UI <<边界类>>
+control "评论管理控制器" as Ctrl <<控制类>>
+entity "评论" as EComment <<实体类>>
+entity "文章" as EArticle <<实体类>>
+
+Admin -> UI : 在评论列表执行审核/启用/删除
+UI -> Ctrl : 提交评论操作(commentId, 操作类型)
+activate Ctrl
+Ctrl -> EComment : 查询评论
+EComment --> Ctrl : 评论信息
+Ctrl -> EArticle : 查询所属文章
+EArticle --> Ctrl : 文章信息
+Ctrl -> EComment : 更新启用状态/删除
+EComment --> Ctrl : 操作结果
+Ctrl --> UI : 操作成功，刷新列表
+deactivate Ctrl
+UI -> Admin : 显示评论列表
+@enduml
