@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
+# DH: 这个文件放全站通用的常量：缓存多久过期、缓存键怎么命名、HTTP 状态码和分页默认值。改这些配置时来这里找。
 
 """
 Django Blog 全局常量定义
@@ -8,6 +9,7 @@ Django Blog 全局常量定义
 
 
 # ===== 缓存过期时间（秒）=====
+# DH: 缓存过期时间都写在这里，写成 60 * 5 这种样子，一眼能看出是 5 分钟，不用自己算秒数。
 class CacheTimeout:
     """
     缓存超时时间常量
@@ -30,10 +32,12 @@ class CacheTimeout:
     DAY_30 = 60 * 60 * 24 * 30
 
     # 默认缓存时间
+    # DH: 默认缓存 10 小时，和 settings 里页面的缓存时间保持一致。
     DEFAULT = HOUR_10  # 10小时
 
 
 # ===== 缓存键前缀 =====
+# DH: 缓存键的模板。键名统一写在这里，代码里用的时候不怕拼错，以后要改也只用改这一处。
 class CacheKey:
     """
     缓存键模板
@@ -69,6 +73,7 @@ class CacheKey:
 
 
 # ===== HTTP 状态码 =====
+# DH: 常用的 HTTP 状态码，给接口返回结果的时候用，省得在代码里直接写数字。
 class HttpStatus:
     """HTTP 状态码常量"""
     OK = 200
@@ -86,6 +91,7 @@ class HttpStatus:
 
 
 # ===== 分页配置 =====
+# DH: 分页的默认值：一页 10 条，最多 100 条，页码参数叫 page。
 class Pagination:
     """分页相关常量"""
     DEFAULT_PAGE_SIZE = 10

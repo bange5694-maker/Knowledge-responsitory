@@ -1,3 +1,5 @@
+# DH: 这个文件是插件的“模板”：所有插件都继承它，按约定填名字、版本、支持的位置，然后就能被主程序加载。
+
 import logging
 from pathlib import Path
 
@@ -7,18 +9,24 @@ from django.template.loader import render_to_string
 logger = logging.getLogger(__name__)
 
 
+# DH: 插件的父类，子类只要填好信息、重写要用的方法就行。
 class BasePlugin:
     # 插件元数据
+    # DH: 插件的名称、说明、版本、作者，前三个必须填，不填会直接报错。
     PLUGIN_NAME = None
     PLUGIN_DESCRIPTION = None
     PLUGIN_VERSION = None
     PLUGIN_AUTHOR = None
 
     # 插件配置
+    # DH: 插件支持放在哪些位置，比如侧边栏、文章底部。
     SUPPORTED_POSITIONS = []  # 支持的显示位置
+    # DH: 优先级数字越小越靠前，默认 100。
     DEFAULT_PRIORITY = 100  # 默认优先级（数字越小优先级越高）
+    # DH: 也可以给每个位置单独设优先级。
     POSITION_PRIORITIES = {}  # 各位置的优先级 {'sidebar': 50, 'article_bottom': 80}
 
+    # DH: 创建插件时先检查必填信息，再找到插件自己的目录，最后让子类做初始化和挂钩子。
     def __init__(self):
         if not all([self.PLUGIN_NAME, self.PLUGIN_DESCRIPTION, self.PLUGIN_VERSION]):
             raise ValueError("Plugin metadata (PLUGIN_NAME, PLUGIN_DESCRIPTION, PLUGIN_VERSION) must be defined.")
@@ -30,16 +38,19 @@ class BasePlugin:
         self.init_plugin()
         self.register_hooks()
 
+    # DH: 通过插件类所在的文件找到它自己的目录。
     def _get_plugin_directory(self):
         """获取插件目录路径"""
         import inspect
         plugin_file = inspect.getfile(self.__class__)
         return Path(plugin_file).parent
 
+    # DH: 插件标识直接用目录名，方便按名字找。
     def _get_plugin_slug(self):
         """获取插件标识符（目录名）"""
         return self.plugin_dir.name
 
+    # DH: 子类想在启动时做点什么，就重写这个方法。
     def init_plugin(self):
         """
         插件初始化逻辑
@@ -47,6 +58,7 @@ class BasePlugin:
         """
         logger.info(f'{self.PLUGIN_NAME} initialized.')
 
+    # DH: 子类在这里把要用的钩子登记上去。
     def register_hooks(self):
         """
         注册插件钩子
@@ -55,6 +67,7 @@ class BasePlugin:
         pass
 
     # === 位置渲染系统 ===
+    # DH: 按位置渲染插件：位置不支持、条件不满足、没有对应的渲染方法，都直接返回空。
     def render_position_widget(self, position, context, **kwargs):
         """
         根据位置渲染插件组件
@@ -88,6 +101,7 @@ class BasePlugin:
 
         return None
 
+    # DH: 默认都显示，子类想加条件就重写它。
     def should_display(self, position, context, **kwargs):
         """
         判断插件是否应该在指定位置显示
@@ -104,6 +118,7 @@ class BasePlugin:
         return True
 
     # === 各位置渲染方法 - 子类重写 ===
+    # DH: 各个位置各留一个空方法，子类用到哪个就重写哪个。
     def render_sidebar_widget(self, context, **kwargs):
         """渲染侧边栏组件"""
         return None
@@ -133,6 +148,7 @@ class BasePlugin:
         return None
 
     # === 模板系统 ===
+    # DH: 渲染插件目录下的模板，模板不存在就返回空字符串，不让页面报错。
     def render_template(self, template_name, context=None):
         """
         渲染插件模板
@@ -156,6 +172,7 @@ class BasePlugin:
             return ""
 
     # === 静态资源系统 ===
+    # DH: 插件自己的静态文件地址和 css/js 列表，子类需要就重写。
     def get_static_url(self, static_file):
         """获取插件静态文件URL"""
         from django.templatetags.static import static
@@ -169,6 +186,7 @@ class BasePlugin:
         """获取插件JavaScript文件列表"""
         return []
 
+    # DH: 需要往页面 head 或 body 里塞内容时，重写下面三个方法。
     def get_critical_head_html(self, context=None):
         """
         获取需要在<head>最早执行的关键HTML内容（阻塞式加载）
@@ -189,6 +207,7 @@ class BasePlugin:
         """获取需要插入到<body>底部的HTML内容"""
         return ""
 
+    # DH: 把插件信息整理成一个字典，后台和调试时用。
     def get_plugin_info(self):
         """
         获取插件信息

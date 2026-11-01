@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
+# DH: 这个文件统一处理出错页面：404、500、403、400 都在这里渲染，不用每个地方各写一遍。
 
 """
 Django Blog 统一错误处理视图
@@ -13,6 +14,7 @@ from django.utils.translation import gettext_lazy as _
 logger = logging.getLogger(__name__)
 
 
+# DH: 通用的出错页面处理：记一下日志，再把统一的错误页面显示给用户。
 def render_error_page(request, status_code, message, exception=None):
     """
     通用错误页面渲染函数
@@ -32,6 +34,7 @@ def render_error_page(request, status_code, message, exception=None):
         def my_error_handler(request, exception):
             return render_error_page(request, 404, "Page not found", exception)
     """
+    # DH: 有异常才记日志，方便排查。
     if exception:
         logger.error(
             f'HTTP {status_code} Error: {exception}',
@@ -42,6 +45,7 @@ def render_error_page(request, status_code, message, exception=None):
             }
         )
 
+    # DH: 用同一个错误页模板，只是把提示文字和状态码换掉。
     return render(
         request,
         'blog/error_page.html',
@@ -53,6 +57,7 @@ def render_error_page(request, status_code, message, exception=None):
     )
 
 
+# DH: 页面找不到时走这里（404）。
 def page_not_found_view(request, exception, template_name='blog/error_page.html'):
     """
     404 错误页面处理器
@@ -75,6 +80,7 @@ def page_not_found_view(request, exception, template_name='blog/error_page.html'
     )
 
 
+# DH: 服务器内部出错时走这里（500）。
 def server_error_view(request, template_name='blog/error_page.html'):
     """
     500 错误页面处理器
@@ -95,6 +101,7 @@ def server_error_view(request, template_name='blog/error_page.html'):
     )
 
 
+# DH: 没有权限访问时走这里（403）。
 def permission_denied_view(request, exception, template_name='blog/error_page.html'):
     """
     403 错误页面处理器
@@ -117,6 +124,7 @@ def permission_denied_view(request, exception, template_name='blog/error_page.ht
     )
 
 
+# DH: 请求本身有问题时走这里（400）。
 def bad_request_view(request, exception, template_name='blog/error_page.html'):
     """
     400 错误页面处理器
