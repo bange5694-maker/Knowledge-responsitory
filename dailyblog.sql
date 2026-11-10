@@ -1,3 +1,12 @@
+-- 「知识分享」博客系统 · 数据库初始化脚本（第四周作业）
+-- 主题：知识分享（4 篇文章、2 条评论，均为测试数据）
+-- 已脱敏：管理员密码重置为测试密码；不含 OAuth token、邮件日志、会话数据
+-- 测试账号：admin / admin123456
+-- 导入方法：
+--   CREATE DATABASE dailyblog CHARACTER SET utf8mb4;
+--   USE dailyblog;
+--   SOURCE dailyblog.sql;
+
 -- MySQL dump 10.13  Distrib 9.4.0, for Win64 (x86_64)
 --
 -- Host: 127.0.0.1    Database: dailyblog
@@ -24,18 +33,18 @@ DROP TABLE IF EXISTS `accounts_bloguser`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `accounts_bloguser` (
   `id` bigint NOT NULL AUTO_INCREMENT,
-  `password` varchar(128) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `password` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `last_login` datetime(6) DEFAULT NULL,
   `is_superuser` tinyint(1) NOT NULL,
-  `username` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `first_name` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `last_name` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `email` varchar(254) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `username` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `first_name` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `last_name` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `email` varchar(254) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `is_staff` tinyint(1) NOT NULL,
   `is_active` tinyint(1) NOT NULL,
   `date_joined` datetime(6) NOT NULL,
-  `nickname` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `source` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `nickname` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `source` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `creation_time` datetime(6) NOT NULL,
   `last_modify_time` datetime(6) NOT NULL,
   PRIMARY KEY (`id`),
@@ -49,7 +58,7 @@ CREATE TABLE `accounts_bloguser` (
 
 LOCK TABLES `accounts_bloguser` WRITE;
 /*!40000 ALTER TABLE `accounts_bloguser` DISABLE KEYS */;
-INSERT INTO `accounts_bloguser` VALUES (1,'pbkdf2_sha256$1000000$L2aQdfVmE5ETvlaCwclpjl$LUhMRHemMD4iuIkMiqQbK1QwBP102fjPANunHNQGtNg=',NULL,1,'admin','','','admin@example.com',1,1,'2026-09-13 21:08:17.965397','我','','2026-09-13 21:08:17.965400','2026-09-13 21:08:17.965401');
+INSERT INTO `accounts_bloguser` VALUES (1,'pbkdf2_sha256$1000000$DUb79Q1ukWE3O601Ank4cT$f8VEjWZQs5qYbPu8/oqBQkhvjRBelaPREJlIRk4+qxE=',NULL,1,'admin','','','admin@example.com',1,1,'2026-09-13 21:08:17.965397','我','','2026-09-13 21:08:17.965400','2026-09-13 21:08:17.965401');
 /*!40000 ALTER TABLE `accounts_bloguser` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -118,7 +127,7 @@ DROP TABLE IF EXISTS `auth_group`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `auth_group` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `name` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -170,9 +179,9 @@ DROP TABLE IF EXISTS `auth_permission`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `auth_permission` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `content_type_id` int NOT NULL,
-  `codename` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `codename` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `auth_permission_content_type_id_codename_01ab375a_uniq` (`content_type_id`,`codename`),
   CONSTRAINT `auth_permission_content_type_id_2f476e4b_fk_django_co` FOREIGN KEY (`content_type_id`) REFERENCES `django_content_type` (`id`)
@@ -198,12 +207,12 @@ DROP TABLE IF EXISTS `blog_article`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `blog_article` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `title` varchar(200) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `body` longtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `title` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `body` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `pub_time` datetime(6) NOT NULL,
-  `status` varchar(1) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `comment_status` varchar(1) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `type` varchar(1) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` varchar(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `comment_status` varchar(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `type` varchar(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `views` int unsigned NOT NULL,
   `article_order` int NOT NULL,
   `show_toc` tinyint(1) NOT NULL,
@@ -220,7 +229,7 @@ CREATE TABLE `blog_article` (
   CONSTRAINT `blog_article_author_id_905add38_fk_accounts_bloguser_id` FOREIGN KEY (`author_id`) REFERENCES `accounts_bloguser` (`id`),
   CONSTRAINT `blog_article_category_id_7e38f15e_fk_blog_category_id` FOREIGN KEY (`category_id`) REFERENCES `blog_category` (`id`),
   CONSTRAINT `blog_article_chk_1` CHECK ((`views` >= 0))
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -229,7 +238,7 @@ CREATE TABLE `blog_article` (
 
 LOCK TABLES `blog_article` WRITE;
 /*!40000 ALTER TABLE `blog_article` DISABLE KEYS */;
-INSERT INTO `blog_article` VALUES (7,'Agent 选型份额报告 · 项目说明','> 一句话：**统计 AI 编程助手都在推荐谁家的产品，把数据卖给厂商。**\n\n---\n\n## 一、背景：发生了什么变化\n\n以前，开发者选工具靠的是：Google 搜索、看博客、问同事。\n\n现在，越来越多开发者直接让 AI 编程助手（Claude Code、Cursor、Codex 等）帮自己做决定：\n\n```\n开发者对 AI 说：\"帮我给这个项目加个数据库\"\nAI 直接回答：\"用 Supabase\"，并且顺手就配好了\n```\n\n**AI 说什么，开发者就用什么。** AI 成了一个新的\"销售渠道\"。\n\n问题在于：**这个渠道是看不见的。**\n\nSupabase 发现新用户变多了，但市场部说不清用户哪来的——不是广告，不是搜索，是 AI 推荐的。看不见就没办法管理，也没办法向老板汇报。\n\n## 二、我们要做什么\n\n做一个\"市场调研公司\"，但调研对象不是人，是 AI。\n\n### 具体做法（三步）\n\n**第 1 步：出题**\n\n准备一批标准化任务，模拟真实开发场景：\n\n- \"给一个 Next.js 电商网站加数据库\"\n- \"给 Flask 应用加用户登录功能\"\n- \"帮我选一个能存向量数据的方案\"\n\n**第 2 步：定期考试**\n\n每周把这些题喂给各家 AI 助手，每个 AI 跑几百遍，记录它们分别推荐了哪些产品。\n\n**第 3 步：出报告、卖订阅**\n\n```\n《2026 年 9 月 Agent 选型报告 · 数据库品类》\n\n- Supabase：被推荐率 58%（比上月 +3%）\n- Neon：22%（比上月 +5%）← 本月黑马\n- PlanetScale：11%（比上月 -8%）⚠️ 正在掉队\n- 附：AI 推荐 Neon 时最常用的理由 top 3\n```\n\n厂商按月付费，持续追踪自己在\"AI 渠道\"里的份额变化——就像今天品牌方买尼尔森的市场份额报告一样。\n\n## 三、为什么这个生意能成立\n\n| 关键点 | 说明 |\n|---|---|\n| **痛点真实** | 厂商明知 AI 在给自己（或对手）拉客，却完全没有数据 |\n| **数据别人抄不走** | 必须持续烧钱跑真实测试才能拿到，不是网上能爬到的 |\n| **越老越值钱** | 历史数据积累越久，趋势分析越有价值 |\n| **天然订阅制** | 厂商需要的是持续监测，不是一次性报告 |\n| **有真实对标** | 通用领域已有公司（如 Profound）做\"AI 搜索可见度监测\"并获得高估值；但专门盯\"AI 编程助手选型\"的还没人做好 |\n\n## 四、技术难不难？——不难\n\n整个系统四个零件，一个人 3-4 周能做出第一版：\n\n1. **题库**：写几十个标准化任务文本（手动活，零代码）\n2. **测试机器人**：AI 助手都有命令行版本，脚本自动批量调用（1-2 天）\n3. **结果统计**：用便宜的小模型自动识别\"这次推荐了谁\"（1-2 天）\n4. **报表网站**：普通的图表 dashboard（1-2 周）\n\n**运行成本**：每次测试只花一点 API 调用费，每月几百元人民币的规模。\n\n> 这个项目的难度 80% 不在技术，在下面第五部分。\n\n## 五、真正的难点（要提前想清楚）\n\n1. **信誉冷启动（最大难点）**\n   报告要先免费公开发布几个月，在行业社区（HN、Twitter、V2EX）攒出口碑，厂商才会认你是\"权威数据源\"。**前半年约等于做内容博主，没有收入。**\n\n2. **厂商可能自己测**\n   厂商花几百块也能自己跑测试。我们的壁垒是：**第三方中立身份 + 全行业最全的历史数据**——自己测的数据没法对外引用，尼尔森的价值就在于此。\n\n3. **题库要保密**\n   题目一旦泄露，厂商会针对性\"刷榜\"（往互联网上灌对自己有利的内容）。题库需要定期更换、不对外公开。\n\n4. **AI 版本更新会造成数据波动**\n   AI 升级后推荐偏好可能突变。这既是风险也是卖点——厂商更需要持续盯数据了。\n\n## 六、落地路径建议\n\n```\n阶段 1（第 1-2 个月）：做 MVP + 免费公开报告\n  → 每周发一份《AI 最爱推荐什么》公开周报，攒行业声望\n\n阶段 2（第 3-6 个月）：验证付费意愿\n  → 主动联系报告里提到的厂商，卖\"详细版数据 + 理由分析\"\n\n阶段 3（第 6 个月后）：订阅制\n  → 按品类收月费，逐品类扩张（数据库 → 鉴权 → 部署 → 监控……）\n```\n\n## 七、和 loopkit 的关系\n\n这个项目和 loopkit 是**同一个市场的两面**：\n\n- **loopkit** = 帮厂商\"被 AI 选中\"的武器（进攻）\n- **本项目** = 帮厂商\"看见自己有没有被选中\"的雷达（测量）\n\n报告积累的行业洞察可以直接指导 loopkit 的内容方向；报告里\"掉队\"的厂商，就是 loopkit 最精准的销售线索。**两个项目共用一套叙事，互相导流。**\n\n---\n\n*文档版本：v1 · 2026-08-19*','2026-09-20 17:35:09.110697','p','o','a',0,0,0,1,3,'2026-09-20 17:35:09.110732','2026-09-20 17:35:09.110735');
+INSERT INTO `blog_article` VALUES (7,'Agent 选型份额报告 · 项目说明','> 一句话：**统计 AI 编程助手都在推荐谁家的产品，把数据卖给厂商。**\n\n---\n\n## 一、背景：发生了什么变化\n\n以前，开发者选工具靠的是：Google 搜索、看博客、问同事。\n\n现在，越来越多开发者直接让 AI 编程助手（Claude Code、Cursor、Codex 等）帮自己做决定：\n\n```\n开发者对 AI 说：\"帮我给这个项目加个数据库\"\nAI 直接回答：\"用 Supabase\"，并且顺手就配好了\n```\n\n**AI 说什么，开发者就用什么。** AI 成了一个新的\"销售渠道\"。\n\n问题在于：**这个渠道是看不见的。**\n\nSupabase 发现新用户变多了，但市场部说不清用户哪来的——不是广告，不是搜索，是 AI 推荐的。看不见就没办法管理，也没办法向老板汇报。\n\n## 二、我们要做什么\n\n做一个\"市场调研公司\"，但调研对象不是人，是 AI。\n\n### 具体做法（三步）\n\n**第 1 步：出题**\n\n准备一批标准化任务，模拟真实开发场景：\n\n- \"给一个 Next.js 电商网站加数据库\"\n- \"给 Flask 应用加用户登录功能\"\n- \"帮我选一个能存向量数据的方案\"\n\n**第 2 步：定期考试**\n\n每周把这些题喂给各家 AI 助手，每个 AI 跑几百遍，记录它们分别推荐了哪些产品。\n\n**第 3 步：出报告、卖订阅**\n\n```\n《2026 年 9 月 Agent 选型报告 · 数据库品类》\n\n- Supabase：被推荐率 58%（比上月 +3%）\n- Neon：22%（比上月 +5%）← 本月黑马\n- PlanetScale：11%（比上月 -8%）⚠️ 正在掉队\n- 附：AI 推荐 Neon 时最常用的理由 top 3\n```\n\n厂商按月付费，持续追踪自己在\"AI 渠道\"里的份额变化——就像今天品牌方买尼尔森的市场份额报告一样。\n\n## 三、为什么这个生意能成立\n\n| 关键点 | 说明 |\n|---|---|\n| **痛点真实** | 厂商明知 AI 在给自己（或对手）拉客，却完全没有数据 |\n| **数据别人抄不走** | 必须持续烧钱跑真实测试才能拿到，不是网上能爬到的 |\n| **越老越值钱** | 历史数据积累越久，趋势分析越有价值 |\n| **天然订阅制** | 厂商需要的是持续监测，不是一次性报告 |\n| **有真实对标** | 通用领域已有公司（如 Profound）做\"AI 搜索可见度监测\"并获得高估值；但专门盯\"AI 编程助手选型\"的还没人做好 |\n\n## 四、技术难不难？——不难\n\n整个系统四个零件，一个人 3-4 周能做出第一版：\n\n1. **题库**：写几十个标准化任务文本（手动活，零代码）\n2. **测试机器人**：AI 助手都有命令行版本，脚本自动批量调用（1-2 天）\n3. **结果统计**：用便宜的小模型自动识别\"这次推荐了谁\"（1-2 天）\n4. **报表网站**：普通的图表 dashboard（1-2 周）\n\n**运行成本**：每次测试只花一点 API 调用费，每月几百元人民币的规模。\n\n> 这个项目的难度 80% 不在技术，在下面第五部分。\n\n## 五、真正的难点（要提前想清楚）\n\n1. **信誉冷启动（最大难点）**\n   报告要先免费公开发布几个月，在行业社区（HN、Twitter、V2EX）攒出口碑，厂商才会认你是\"权威数据源\"。**前半年约等于做内容博主，没有收入。**\n\n2. **厂商可能自己测**\n   厂商花几百块也能自己跑测试。我们的壁垒是：**第三方中立身份 + 全行业最全的历史数据**——自己测的数据没法对外引用，尼尔森的价值就在于此。\n\n3. **题库要保密**\n   题目一旦泄露，厂商会针对性\"刷榜\"（往互联网上灌对自己有利的内容）。题库需要定期更换、不对外公开。\n\n4. **AI 版本更新会造成数据波动**\n   AI 升级后推荐偏好可能突变。这既是风险也是卖点——厂商更需要持续盯数据了。\n\n## 六、落地路径建议\n\n```\n阶段 1（第 1-2 个月）：做 MVP + 免费公开报告\n  → 每周发一份《AI 最爱推荐什么》公开周报，攒行业声望\n\n阶段 2（第 3-6 个月）：验证付费意愿\n  → 主动联系报告里提到的厂商，卖\"详细版数据 + 理由分析\"\n\n阶段 3（第 6 个月后）：订阅制\n  → 按品类收月费，逐品类扩张（数据库 → 鉴权 → 部署 → 监控……）\n```\n\n## 七、和 loopkit 的关系\n\n这个项目和 loopkit 是**同一个市场的两面**：\n\n- **loopkit** = 帮厂商\"被 AI 选中\"的武器（进攻）\n- **本项目** = 帮厂商\"看见自己有没有被选中\"的雷达（测量）\n\n报告积累的行业洞察可以直接指导 loopkit 的内容方向；报告里\"掉队\"的厂商，就是 loopkit 最精准的销售线索。**两个项目共用一套叙事，互相导流。**\n\n---\n\n*文档版本：v1 · 2026-08-19*','2026-09-20 17:35:09.110697','p','o','a',57,0,0,1,3,'2026-09-20 17:35:09.110732','2026-09-20 17:35:09.110735'),(8,'Git 团队协作实践：从建分支到合并的完整流程','小组作业最怕的不是写代码，而是五个人的修改互相覆盖。这篇文章把我们组这学期用的 Git 协作流程完整记录下来，照着做基本不会出问题。\n\n## 一、为什么必须一人一分支\n\n如果五个人都直接在 main 上改文件，先提交的人会把后提交的人覆盖掉，出了问题也查不出是谁改的。正确做法是每个人从 main 拉一个自己的分支：\n\n```bash\ngit checkout -b feat/我的任务\n```\n\n分支就是你的\"私人草稿本\"，在上面随便改，都不会影响别人。\n\n## 二、改完之后的提交三步\n\n1. 先看自己到底改了什么：`git diff`\n2. 只提交自己改的那个文件：`git add 文件名`（千万不要 `git add .`）\n3. 写清楚提交说明：`git commit -m \"修改页脚文案\"`\n\n## 三、合并交给组长\n\n推送自己的分支后，在 GitHub 上创建 Pull Request，剩下的合并不用你管。合并由组长统一执行，这样可以保证 main 分支始终是可运行的版本。\n\n> 经验：提交说明写得越具体，后面排查问题越省事。写\"更新\"两个字，三天后连自己都不知道改了什么。\n\n## 四、常见坑\n\n- 忘记 `git add` 就 commit，结果提交是空的\n- 在别人的分支上改文件，导致两边都乱\n- 冲突了不找人，自己乱点一通把代码删了\n\n遇到报错先截图，把整段报错发到群里，不要自己瞎试。','2026-10-03 10:30:00.000000','p','o','a',27,0,0,1,4,'2026-10-03 10:30:00.000000','2026-10-07 21:55:45.438773'),(9,'Django 博客二次开发记录：环境搭建与内容替换','这篇记录我们组把这套博客从零跑起来的完整过程，也当作给下一届同学的一份避坑笔记。\n\n## 需要准备的四样东西\n\n| 软件 | 用途 | 版本参考 |\n| --- | --- | --- |\n| Python | 跑后端（Django） | 3.13 |\n| MySQL | 存文章和用户数据 | 9.4 |\n| Node.js | 编译前端样式 | 26.x |\n| VS Code | 写代码 | 最新版 |\n\n## 大致流程\n\n1. 把代码下载到本机，装好依赖；\n2. 建一个空的 MySQL 数据库，导入初始数据；\n3. 用 `npm run build` 编译一次前端资源（不编译页面就没有样式）；\n4. 启动服务，浏览器打开 `127.0.0.1:8001` 就能看到博客了。\n\n## 内容替换\n\n模板自带的示例文章是英文的，我们把它们清空，换成了自己写的中文文章，并重新整理了分类和标签。改完以后博客看起来就完全是\"自己的站\"了。\n\n**一个提醒**：不要在网站后台里直接改文章和配置。后台的数据存在数据库里，不跟着代码走，组员合并分支的时候一个字都拿不到。','2026-09-25 15:00:00.000000','p','o','a',41,0,0,1,4,'2026-09-25 15:00:00.000000','2026-10-07 21:55:46.275557'),(10,'知识分享写作指南：用 Markdown 把想法讲清楚','好的分享不在于用了多少高级词汇，而在于读者看完之后能不能自己动手做一遍。这篇文章整理我们写作时常用的几条 Markdown 技巧。\n\n## 一、结构先行\n\n写之前先用小标题把骨架搭出来，读者扫一眼就知道文章讲什么：\n\n- 为什么写这篇（背景）\n- 怎么做（步骤）\n- 结果和坑（经验）\n\n## 二、能标重点就别堆句子\n\n**重点结论用一个加粗就够了**，一段话里出现三个加粗，等于没有重点。\n\n## 三、代码和命令单独放\n\n行内提到用 `反引号`，整段命令用代码块，注意下面这种写法：\n\n```bash\npython manage.py runserver 127.0.0.1:8001\n```\n\n> 引用块适合放提醒和\"经验之谈\"，但一篇里最多一两处，多了会显得啰嗦。\n\n## 四、写完自己读一遍\n\n把文章当成发给同学的消息读一遍，读着别扭的地方，就是该删的地方。','2026-09-22 09:15:00.000000','p','o','a',15,0,0,1,5,'2026-09-22 09:15:00.000000','2026-10-07 21:55:46.378165');
 /*!40000 ALTER TABLE `blog_article` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -249,7 +258,7 @@ CREATE TABLE `blog_article_tags` (
   KEY `blog_article_tags_tag_id_88eb3ed9_fk_blog_tag_id` (`tag_id`),
   CONSTRAINT `blog_article_tags_article_id_82c02dd6_fk_blog_article_id` FOREIGN KEY (`article_id`) REFERENCES `blog_article` (`id`),
   CONSTRAINT `blog_article_tags_tag_id_88eb3ed9_fk_blog_tag_id` FOREIGN KEY (`tag_id`) REFERENCES `blog_tag` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=24 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -258,7 +267,7 @@ CREATE TABLE `blog_article_tags` (
 
 LOCK TABLES `blog_article_tags` WRITE;
 /*!40000 ALTER TABLE `blog_article_tags` DISABLE KEYS */;
-INSERT INTO `blog_article_tags` VALUES (15,7,15),(16,7,16),(17,7,17);
+INSERT INTO `blog_article_tags` VALUES (15,7,15),(16,7,16),(17,7,17),(18,8,18),(19,8,19),(20,9,20),(21,9,21),(22,10,22),(23,10,23);
 /*!40000 ALTER TABLE `blog_article_tags` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -271,25 +280,25 @@ DROP TABLE IF EXISTS `blog_blogsettings`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `blog_blogsettings` (
   `id` bigint NOT NULL AUTO_INCREMENT,
-  `site_name` varchar(200) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `site_description` longtext COLLATE utf8mb4_unicode_ci NOT NULL,
-  `site_seo_description` longtext COLLATE utf8mb4_unicode_ci NOT NULL,
-  `site_keywords` longtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `site_name` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `site_description` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `site_seo_description` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `site_keywords` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `article_sub_length` int NOT NULL,
   `sidebar_article_count` int NOT NULL,
   `sidebar_comment_count` int NOT NULL,
   `article_comment_count` int NOT NULL,
   `show_google_adsense` tinyint(1) NOT NULL,
-  `google_adsense_codes` longtext COLLATE utf8mb4_unicode_ci,
+  `google_adsense_codes` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `open_site_comment` tinyint(1) NOT NULL,
-  `beian_code` varchar(2000) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `analytics_code` longtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `beian_code` varchar(2000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `analytics_code` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `show_gongan_code` tinyint(1) NOT NULL,
-  `gongan_beiancode` longtext COLLATE utf8mb4_unicode_ci,
-  `global_footer` longtext COLLATE utf8mb4_unicode_ci,
-  `global_header` longtext COLLATE utf8mb4_unicode_ci,
+  `gongan_beiancode` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `global_footer` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `global_header` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `comment_need_review` tinyint(1) NOT NULL,
-  `color_scheme` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `color_scheme` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -313,8 +322,8 @@ DROP TABLE IF EXISTS `blog_category`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `blog_category` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `name` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `slug` varchar(60) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `slug` varchar(60) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `index` int NOT NULL,
   `parent_category_id` int DEFAULT NULL,
   `creation_time` datetime(6) NOT NULL,
@@ -324,7 +333,7 @@ CREATE TABLE `blog_category` (
   KEY `blog_category_parent_category_id_f50c3c0c_fk_blog_category_id` (`parent_category_id`),
   KEY `blog_category_slug_92643dc5` (`slug`),
   CONSTRAINT `blog_category_parent_category_id_f50c3c0c_fk_blog_category_id` FOREIGN KEY (`parent_category_id`) REFERENCES `blog_category` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -333,7 +342,7 @@ CREATE TABLE `blog_category` (
 
 LOCK TABLES `blog_category` WRITE;
 /*!40000 ALTER TABLE `blog_category` DISABLE KEYS */;
-INSERT INTO `blog_category` VALUES (3,'商业','shang-ye',0,NULL,'2026-09-20 16:33:55.046180','2026-09-20 16:33:55.046185');
+INSERT INTO `blog_category` VALUES (3,'商业','shang-ye',0,NULL,'2026-09-20 16:33:55.046180','2026-09-20 16:33:55.046185'),(4,'技术','ji-zhu',0,NULL,'2026-10-07 21:55:39.064891','2026-10-07 21:55:39.064894'),(5,'学习笔记','xue-xi-bi-ji',0,NULL,'2026-10-07 21:55:39.434490','2026-10-07 21:55:39.434492');
 /*!40000 ALTER TABLE `blog_category` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -346,17 +355,17 @@ DROP TABLE IF EXISTS `blog_links`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `blog_links` (
   `id` bigint NOT NULL AUTO_INCREMENT,
-  `name` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `link` varchar(200) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `link` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `sequence` int NOT NULL,
   `is_enable` tinyint(1) NOT NULL,
-  `show_type` varchar(1) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `show_type` varchar(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `last_mod_time` datetime(6) NOT NULL,
   `creation_time` datetime(6) NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`),
   UNIQUE KEY `sequence` (`sequence`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -365,6 +374,7 @@ CREATE TABLE `blog_links` (
 
 LOCK TABLES `blog_links` WRITE;
 /*!40000 ALTER TABLE `blog_links` DISABLE KEYS */;
+INSERT INTO `blog_links` VALUES (1,'Django 官方文档','https://docs.djangoproject.com/',1,1,'i','2026-10-07 21:55:46.494006','2026-10-07 21:55:46.494004'),(2,'DjangoBlog 开源项目','https://github.com/liangliangyy/DjangoBlog',2,1,'i','2026-10-07 21:55:46.499256','2026-10-07 21:55:46.499255'),(3,'GitHub','https://github.com/',3,1,'i','2026-10-07 21:55:46.504476','2026-10-07 21:55:46.504474');
 /*!40000 ALTER TABLE `blog_links` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -377,8 +387,8 @@ DROP TABLE IF EXISTS `blog_sidebar`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `blog_sidebar` (
   `id` bigint NOT NULL AUTO_INCREMENT,
-  `name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `content` longtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `content` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `sequence` int NOT NULL,
   `is_enable` tinyint(1) NOT NULL,
   `last_mod_time` datetime(6) NOT NULL,
@@ -406,14 +416,14 @@ DROP TABLE IF EXISTS `blog_tag`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `blog_tag` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `name` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `slug` varchar(60) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `slug` varchar(60) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `creation_time` datetime(6) NOT NULL,
   `last_modify_time` datetime(6) NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`),
   KEY `blog_tag_slug_01068d0e` (`slug`)
-) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=24 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -422,7 +432,7 @@ CREATE TABLE `blog_tag` (
 
 LOCK TABLES `blog_tag` WRITE;
 /*!40000 ALTER TABLE `blog_tag` DISABLE KEYS */;
-INSERT INTO `blog_tag` VALUES (15,'Agent','agent','2026-09-20 17:35:09.562353','2026-09-20 17:35:09.562357'),(16,'市场调研','shi-chang-diao-yan','2026-09-20 17:35:09.578181','2026-09-20 17:35:09.578184'),(17,'商业模式','shang-ye-mo-shi','2026-09-20 17:35:09.593903','2026-09-20 17:35:09.593906');
+INSERT INTO `blog_tag` VALUES (15,'Agent','agent','2026-09-20 17:35:09.562353','2026-09-20 17:35:09.562357'),(16,'市场调研','shi-chang-diao-yan','2026-09-20 17:35:09.578181','2026-09-20 17:35:09.578184'),(17,'商业模式','shang-ye-mo-shi','2026-09-20 17:35:09.593903','2026-09-20 17:35:09.593906'),(18,'Git','git','2026-10-07 21:55:39.441743','2026-10-07 21:55:39.441745'),(19,'团队协作','tuan-dui-xie-zuo','2026-10-07 21:55:39.447238','2026-10-07 21:55:39.447240'),(20,'Django','django','2026-10-07 21:55:39.453968','2026-10-07 21:55:39.453970'),(21,'Python','python','2026-10-07 21:55:39.458510','2026-10-07 21:55:39.458512'),(22,'Markdown','markdown','2026-10-07 21:55:39.463721','2026-10-07 21:55:39.463723'),(23,'写作','xie-zuo','2026-10-07 21:55:39.468731','2026-10-07 21:55:39.468732');
 /*!40000 ALTER TABLE `blog_tag` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -435,7 +445,7 @@ DROP TABLE IF EXISTS `comments_comment`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `comments_comment` (
   `id` bigint NOT NULL AUTO_INCREMENT,
-  `body` longtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `body` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `is_enable` tinyint(1) NOT NULL,
   `article_id` int NOT NULL,
   `author_id` bigint NOT NULL,
@@ -450,7 +460,7 @@ CREATE TABLE `comments_comment` (
   CONSTRAINT `comments_comment_article_id_94fe60a2_fk_blog_article_id` FOREIGN KEY (`article_id`) REFERENCES `blog_article` (`id`),
   CONSTRAINT `comments_comment_author_id_334ce9e2_fk_accounts_bloguser_id` FOREIGN KEY (`author_id`) REFERENCES `accounts_bloguser` (`id`),
   CONSTRAINT `comments_comment_parent_comment_id_71289d4a_fk_comments_` FOREIGN KEY (`parent_comment_id`) REFERENCES `comments_comment` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -459,6 +469,7 @@ CREATE TABLE `comments_comment` (
 
 LOCK TABLES `comments_comment` WRITE;
 /*!40000 ALTER TABLE `comments_comment` DISABLE KEYS */;
+INSERT INTO `comments_comment` VALUES (1,'写得很清楚，正好这次作业要用，收藏了！',1,8,1,NULL,'2026-10-07 21:55:46.480150','2026-10-07 21:55:46.480153'),(2,'+1，分支命名那一段特别实用，已经转给组里同学了。',1,8,1,1,'2026-10-07 21:55:46.486551','2026-10-07 21:55:46.486553');
 /*!40000 ALTER TABLE `comments_comment` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -471,7 +482,7 @@ DROP TABLE IF EXISTS `comments_commentreaction`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `comments_commentreaction` (
   `id` bigint NOT NULL AUTO_INCREMENT,
-  `reaction_type` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `reaction_type` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `created_at` datetime(6) NOT NULL,
   `comment_id` bigint NOT NULL,
   `user_id` bigint NOT NULL,
@@ -503,10 +514,10 @@ DROP TABLE IF EXISTS `django_admin_log`;
 CREATE TABLE `django_admin_log` (
   `id` int NOT NULL AUTO_INCREMENT,
   `action_time` datetime(6) NOT NULL,
-  `object_id` longtext COLLATE utf8mb4_unicode_ci,
-  `object_repr` varchar(200) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `object_id` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `object_repr` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `action_flag` smallint unsigned NOT NULL,
-  `change_message` longtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `change_message` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `content_type_id` int DEFAULT NULL,
   `user_id` bigint NOT NULL,
   PRIMARY KEY (`id`),
@@ -536,8 +547,8 @@ DROP TABLE IF EXISTS `django_content_type`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `django_content_type` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `app_label` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `model` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `app_label` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `model` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `django_content_type_app_label_model_76bd3d3b_uniq` (`app_label`,`model`)
 ) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -562,8 +573,8 @@ DROP TABLE IF EXISTS `django_migrations`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `django_migrations` (
   `id` bigint NOT NULL AUTO_INCREMENT,
-  `app` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `app` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `applied` datetime(6) NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=41 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -587,8 +598,8 @@ DROP TABLE IF EXISTS `django_session`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `django_session` (
-  `session_key` varchar(40) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `session_data` longtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `session_key` varchar(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `session_data` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `expire_date` datetime(6) NOT NULL,
   PRIMARY KEY (`session_key`),
   KEY `django_session_expire_date_a5c62663` (`expire_date`)
@@ -613,8 +624,8 @@ DROP TABLE IF EXISTS `django_site`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `django_site` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `domain` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `name` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `domain` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `django_site_domain_a2e37b91_uniq` (`domain`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -639,10 +650,10 @@ DROP TABLE IF EXISTS `oauth_oauthconfig`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `oauth_oauthconfig` (
   `id` bigint NOT NULL AUTO_INCREMENT,
-  `type` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `appkey` varchar(200) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `appsecret` varchar(200) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `callback_url` varchar(200) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `type` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `appkey` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `appsecret` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `callback_url` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `is_enable` tinyint(1) NOT NULL,
   `creation_time` datetime(6) NOT NULL,
   `last_modify_time` datetime(6) NOT NULL,
@@ -668,13 +679,13 @@ DROP TABLE IF EXISTS `oauth_oauthuser`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `oauth_oauthuser` (
   `id` bigint NOT NULL AUTO_INCREMENT,
-  `openid` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `nickname` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `token` varchar(150) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `picture` varchar(350) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `type` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `email` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `metadata` longtext COLLATE utf8mb4_unicode_ci,
+  `openid` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `nickname` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `token` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `picture` varchar(350) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `type` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `email` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `metadata` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `author_id` bigint DEFAULT NULL,
   `creation_time` datetime(6) NOT NULL,
   `last_modify_time` datetime(6) NOT NULL,
@@ -702,9 +713,9 @@ DROP TABLE IF EXISTS `servermanager_commands`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `servermanager_commands` (
   `id` bigint NOT NULL AUTO_INCREMENT,
-  `title` varchar(300) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `command` varchar(2000) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `describe` varchar(300) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `title` varchar(300) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `command` varchar(2000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `describe` varchar(300) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `creation_time` datetime(6) NOT NULL,
   `last_modify_time` datetime(6) NOT NULL,
   PRIMARY KEY (`id`)
@@ -729,9 +740,9 @@ DROP TABLE IF EXISTS `servermanager_emailsendlog`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `servermanager_emailsendlog` (
   `id` bigint NOT NULL AUTO_INCREMENT,
-  `emailto` varchar(300) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `title` varchar(2000) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `content` longtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `emailto` varchar(300) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `title` varchar(2000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `content` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `send_result` tinyint(1) NOT NULL,
   `creation_time` datetime(6) NOT NULL,
   PRIMARY KEY (`id`)
@@ -756,4 +767,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-09-20 18:32:04
+-- Dump completed on 2026-11-10 22:50:35
