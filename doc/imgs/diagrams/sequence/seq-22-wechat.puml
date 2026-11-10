@@ -1,0 +1,26 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+hide footbox
+autonumber
+
+actor "微信服务器" as WeChat
+boundary "微信消息接口" as UI <<边界类>>
+control "微信问答控制器" as Ctrl <<控制类>>
+entity "搜索索引" as EIndex <<实体类>>
+entity "文章" as EArticle <<实体类>>
+entity "分类" as ECategory <<实体类>>
+
+WeChat -> UI : 推送用户消息（关键词/命令）
+UI -> Ctrl : 解析消息(type, content)
+activate Ctrl
+Ctrl -> EIndex : 关键词检索文章(?关键词)
+EIndex --> Ctrl : 匹配文档
+Ctrl -> EArticle : 加载文章详情/最新文章
+EArticle --> Ctrl : 文章信息
+Ctrl -> ECategory : 查询分类目录(category)
+ECategory --> Ctrl : 分类列表
+Ctrl --> UI : 组装图文/文本回复
+deactivate Ctrl
+UI -> WeChat : 返回回复内容
+@enduml

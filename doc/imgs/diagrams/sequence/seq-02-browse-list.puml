@@ -1,0 +1,29 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+hide footbox
+autonumber
+
+actor "访客" as User
+boundary "首页界面" as UI <<边界类>>
+control "文章列表控制器" as Ctrl <<控制类>>
+entity "文章" as EArticle <<实体类>>
+entity "分类" as ECategory <<实体类>>
+entity "标签" as ETag <<实体类>>
+entity "站点设置" as ESettings <<实体类>>
+
+User -> UI : 访问首页
+UI -> Ctrl : 请求文章列表(页码)
+activate Ctrl
+Ctrl -> EArticle : 查询已发布文章（分页）
+EArticle --> Ctrl : 文章列表
+Ctrl -> ECategory : 查询分类树（导航）
+ECategory --> Ctrl : 分类列表
+Ctrl -> ETag : 查询标签云
+ETag --> Ctrl : 标签列表
+Ctrl -> ESettings : 读取摘要长度等设置
+ESettings --> Ctrl : 站点设置
+Ctrl --> UI : 文章列表与侧栏数据
+deactivate Ctrl
+UI -> User : 渲染文章卡片列表
+@enduml

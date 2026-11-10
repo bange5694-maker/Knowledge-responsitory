@@ -1,0 +1,30 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+hide footbox
+autonumber
+
+actor "注册用户" as User
+boundary "文章详情页界面" as UI <<边界类>>
+control "评论控制器" as Ctrl <<控制类>>
+entity "用户" as EUser <<实体类>>
+entity "文章" as EArticle <<实体类>>
+entity "评论" as EComment <<实体类>>
+actor "邮件服务器" as Mail
+
+User -> UI : 点击「回复」，输入内容并提交
+UI -> Ctrl : 提交回复(articleId, parentId, content)
+activate Ctrl
+Ctrl -> EUser : 获取当前登录用户
+EUser --> Ctrl : 用户信息
+Ctrl -> EArticle : 查询文章与评论开关
+EArticle --> Ctrl : 文章信息
+Ctrl -> EComment : 校验父评论属于该文章
+EComment --> Ctrl : 父评论信息
+Ctrl -> EComment : 创建回复并保存（父评论, 内容）
+EComment --> Ctrl : 回复编号
+Ctrl ->> Mail : 通知被回复者（父评论作者）
+Ctrl --> UI : 提交成功（回复编号）
+deactivate Ctrl
+UI -> User : 刷新评论区并定位到回复
+@enduml

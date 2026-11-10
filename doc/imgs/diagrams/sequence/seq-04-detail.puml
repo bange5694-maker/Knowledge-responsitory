@@ -1,0 +1,27 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+hide footbox
+autonumber
+
+actor "访客" as User
+boundary "文章详情页界面" as UI <<边界类>>
+control "文章详情控制器" as Ctrl <<控制类>>
+entity "文章" as EArticle <<实体类>>
+entity "用户" as EUser <<实体类>>
+entity "评论" as EComment <<实体类>>
+
+User -> UI : 点击文章标题
+UI -> Ctrl : 请求文章详情(articleId)
+activate Ctrl
+Ctrl -> EArticle : 查询文章(articleId)
+EArticle --> Ctrl : 文章内容与状态
+Ctrl -> EUser : 查询作者信息
+EUser --> Ctrl : 作者信息
+Ctrl -> EComment : 查询评论列表（含嵌套/表情）
+EComment --> Ctrl : 评论列表
+Ctrl -> EArticle : 浏览量加 1
+Ctrl --> UI : 文章详情数据
+deactivate Ctrl
+UI -> User : 渲染正文、推荐与评论
+@enduml

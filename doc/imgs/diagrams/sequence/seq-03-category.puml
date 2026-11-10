@@ -1,0 +1,23 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+hide footbox
+autonumber
+
+actor "访客" as User
+boundary "分类页界面" as UI <<边界类>>
+control "分类浏览控制器" as Ctrl <<控制类>>
+entity "分类" as ECategory <<实体类>>
+entity "文章" as EArticle <<实体类>>
+
+User -> UI : 点击导航中的分类
+UI -> Ctrl : 请求分类文章(slug, 页码)
+activate Ctrl
+Ctrl -> ECategory : 按 slug 查询分类
+ECategory --> Ctrl : 分类信息（含子分类）
+Ctrl -> EArticle : 查询该分类下已发布文章
+EArticle --> Ctrl : 文章列表
+Ctrl --> UI : 分类文章列表
+deactivate Ctrl
+UI -> User : 展示分类页
+@enduml
