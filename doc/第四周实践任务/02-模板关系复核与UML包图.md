@@ -71,7 +71,7 @@ python doc/第四周实践任务/tools/audit_templates.py --check
 另外：
 
 - `comments/tags/comment_item_tree.html` 第 47～54 行通过变量 `{% include template_name %}` 递归包含自身；模板名是变量，所以正则扫描不会把它算进上表。
-- `templates/share_layout/nav_node.html` 与 `nav_node_mobile.html` 内部也通过变量自我递归，但**没有任何外部模板引用它们**（见下节）。
+- `templates/share_layout/nav_node.html` 内部也通过变量自我递归；`nav_node.html` 与 `nav_node_mobile.html` 都**没有任何外部模板引用**（见下节）。
 
 ---
 
