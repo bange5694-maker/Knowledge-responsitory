@@ -1,0 +1,32 @@
+@startuml
+skinparam monochrome true
+skinparam dpi 200
+skinparam shadowing false
+hide footbox
+autonumber
+
+actor "注册用户" as User
+boundary "文章详情页界面" as UI <<边界类>>
+control "评论控制器" as Ctrl <<控制类>>
+entity "用户" as EUser <<实体类>>
+entity "文章" as EArticle <<实体类>>
+entity "评论" as EComment <<实体类>>
+entity "站点设置" as ESettings <<实体类>>
+actor "邮件服务器" as Mail
+
+User -> UI : 填写评论内容，点击「发表评论」
+UI -> Ctrl : 提交评论(articleId, content, parentId)
+activate Ctrl
+Ctrl -> EUser : 获取当前登录用户()
+EUser --> Ctrl : 用户信息
+Ctrl -> EArticle : 查询文章(articleId)
+EArticle --> Ctrl : 文章信息（含评论开关）
+Ctrl -> ESettings : 读取评论审核设置()
+ESettings --> Ctrl : 审核标志
+Ctrl -> EComment : 创建并保存评论(用户, 文章, 内容)
+EComment --> Ctrl : 评论编号
+Ctrl ->> Mail : 发送评论通知邮件(异步)
+Ctrl --> UI : 提交成功（评论编号）
+deactivate Ctrl
+UI -> User : 刷新评论区并定位到新评论
+@enduml

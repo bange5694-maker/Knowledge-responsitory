@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
+# DH: 这个文件是公共工具：缓存、发邮件、Markdown 转换、头像下载、HTML 清洗这些到处要用的东西都放这里。
 
 
 import logging
@@ -21,18 +22,21 @@ from django.templatetags.static import static
 logger = logging.getLogger(__name__)
 
 
+# DH: 取文章和评论当前最大的编号，导入导出数据或者做增量同步时会用到。
 def get_max_articleid_commentid():
     from blog.models import Article
     from comments.models import Comment
     return (Article.objects.latest().pk, Comment.objects.latest().pk)
 
 
+# DH: 把内容加上站点密钥再算一次 SHA256，用来做签名，别人改不了。
 def get_sha256(value):
     key = settings.SECRET_KEY.encode('utf-8')
     msg = str(value).encode('utf-8')
     return hmac.new(key, msg, hashlib.sha256).hexdigest()
 
 
+# DH: 给函数套一层缓存：先按参数算一个键，缓存里有就直接返回，没有才真正执行并存起来。
 def cache_decorator(expiration=3 * 60):
     def wrapper(func):
         def news(*args, **kwargs):
@@ -41,6 +45,7 @@ def cache_decorator(expiration=3 * 60):
                 key = view.get_cache_key()
             except:
                 key = None
+            # DH: 视图如果有 get_cache_key() 就用它当键，没有就用参数算一个。
             if not key:
                 unique_str = repr((func, args, kwargs))
 
@@ -49,6 +54,7 @@ def cache_decorator(expiration=3 * 60):
             value = cache.get(key)
             if value is not None:
                 # logger.info('cache_decorator get cache:%s key:%s' % (func.__name__, key))
+                # DH: 存特殊值表示“上次结果就是 None”，免得下次又去执行一遍。
                 if str(value) == '__default_cache_value__':
                     return None
                 else:
@@ -69,6 +75,7 @@ def cache_decorator(expiration=3 * 60):
     return wrapper
 
 
+# DH: 手动清掉某个页面的缓存。Django 的页面缓存是按请求算键的，这里造一个同样的请求去删。
 def expire_view_cache(path, servername, serverport, key_prefix=None):
     '''
     刷新视图缓存
@@ -94,15 +101,18 @@ def expire_view_cache(path, servername, serverport, key_prefix=None):
     return False
 
 
+# DH: 取当前站点信息（域名等），加了缓存，不用每次查数据库。
 @cache_decorator()
 def get_current_site():
     site = Site.objects.get_current()
     return site
 
 
+# DH: 把文章正文的 Markdown 转成 HTML，顺便支持代码高亮、表格和目录。
 class CommonMarkdown:
     @staticmethod
     def _convert_markdown(value):
+        # DH: 这里配置 Markdown 支持哪些写法：代码块高亮、目录、表格。
         md = markdown.Markdown(
             extensions=[
                 'extra',
@@ -115,17 +125,20 @@ class CommonMarkdown:
         toc = md.toc
         return body, toc
 
+    # DH: 返回正文和目录两部分。
     @staticmethod
     def get_markdown_with_toc(value):
         body, toc = CommonMarkdown._convert_markdown(value)
         return body, toc
 
+    # DH: 只要正文，不要目录。
     @staticmethod
     def get_markdown(value):
         body, toc = CommonMarkdown._convert_markdown(value)
         return body
 
 
+# DH: 发邮件的统一入口，实际发送交给信号处理，这样调用方不用等邮件发完。
 def send_email(emailto, title, content):
     from djangoblog.blog_signals import send_email_signal
     send_email_signal.send(
@@ -135,11 +148,13 @@ def send_email(emailto, title, content):
         content=content)
 
 
+# DH: 生成 6 位数字的随机码，找回密码时发给邮箱。
 def generate_code() -> str:
     """生成随机数验证码"""
     return ''.join(random.sample(string.digits, 6))
 
 
+# DH: 把字典拼成 a=1&b=2 这样的地址参数，拼之前先转义特殊字符。
 def parse_dict_to_url(dict):
     from urllib.parse import quote
     url = '&'.join(['{}={}'.format(quote(k, safe='/'), quote(v, safe='/'))
@@ -147,6 +162,7 @@ def parse_dict_to_url(dict):
     return url
 
 
+# DH: 取站点设置；如果数据库里还没有设置，就先建一份默认的，再放进缓存。
 def get_blog_setting():
     value = cache.get('get_blog_setting')
     if value:
@@ -154,6 +170,7 @@ def get_blog_setting():
     else:
         from blog.models import BlogSettings
         if not BlogSettings.objects.count():
+            # DH: 第一次运行没有设置，这里给一套默认值，保证网站能正常显示。
             setting = BlogSettings()
             setting.site_name = 'djangoblog'
             setting.site_description = '基于Django的博客系统'
@@ -175,6 +192,7 @@ def get_blog_setting():
         return value
 
 
+# DH: 把第三方登录给的头像下载到本地，存到 static/avatar 下面；失败就用默认头像。
 def save_user_avatar(url):
     '''
     保存用户头像
@@ -190,6 +208,7 @@ def save_user_avatar(url):
             if not os.path.exists(basedir):
                 os.makedirs(basedir)
 
+            # DH: 地址结尾像图片就用原来的后缀，不像就按 jpg 存。
             image_extensions = ['.jpg', '.png', 'jpeg', '.gif']
             isimage = len([i for i in image_extensions if url.endswith(i)]) > 0
             ext = os.path.splitext(url)[1] if isimage else '.jpg'
@@ -199,10 +218,12 @@ def save_user_avatar(url):
                 file.write(rsp.content)
             return static('avatar/' + save_filename)
     except Exception as e:
+        # DH: 下载失败不能影响登录，直接给默认头像。
         logger.error(e)
         return static('blog/img/avatar.png')
 
 
+# DH: 把侧边栏相关的缓存都删掉，侧边栏有好几种类型，要一起清。
 def delete_sidebar_cache():
     from blog.models import LinkShowType
     keys = ["sidebar" + x for x in LinkShowType.values]
@@ -211,12 +232,14 @@ def delete_sidebar_cache():
         cache.delete(k)
 
 
+# DH: 按模板片段的名字删缓存。
 def delete_view_cache(prefix, keys):
     from django.core.cache.utils import make_template_fragment_key
     key = make_template_fragment_key(prefix, keys)
     cache.delete(key)
 
 
+# DH: 取静态资源地址，配置里有就用配置的，没有就拼一个。
 def get_resource_url():
     if settings.STATIC_URL:
         return settings.STATIC_URL
@@ -226,6 +249,7 @@ def get_resource_url():
 
 
 # 允许的HTML标签白名单 - 支持markdown常用元素
+# DH: 允许的 HTML 标签白名单，只放 Markdown 常用到的，防止有人往文章里塞脚本。
 ALLOWED_TAGS = [
     'a', 'abbr', 'acronym', 'b', 'blockquote', 'code', 'em', 'i', 'li', 'ol', 'ul', 'pre', 'strong',
     'h1', 'h2', 'h3', 'h4', 'h5', 'h6',  # 标题
@@ -237,6 +261,7 @@ ALLOWED_TAGS = [
 ]
 
 # 安全的class值白名单 - 只允许代码高亮相关的class
+# DH: 只允许代码高亮用到的 class，其他 class 一律过滤掉。
 ALLOWED_CLASSES = [
     'codehilite', 'highlight', 'hll', 'c', 'err', 'k', 'l', 'n', 'o', 'p', 'cm', 'cp', 'c1', 'cs',
     'gd', 'ge', 'gr', 'gh', 'gi', 'go', 'gp', 'gs', 'gu', 'gt', 'kc', 'kd', 'kn', 'kp', 'kr', 'kt',
@@ -245,6 +270,7 @@ ALLOWED_CLASSES = [
     's1', 'ss', 'bp', 'vc', 'vg', 'vi', 'il'
 ]
 
+# DH: 自定义 class 过滤：只留下白名单里的值。
 def class_filter(tag, name, value):
     """自定义class属性过滤器"""
     if name == 'class':
@@ -254,6 +280,7 @@ def class_filter(tag, name, value):
     return value
 
 # 安全的属性白名单
+# DH: 每个标签允许带哪些属性，比如 img 只让带 src、alt 这些。
 ALLOWED_ATTRIBUTES = {
     'a': ['href', 'title', 'rel'],  # rel="nofollow" 用于外部链接
     'abbr': ['title'], 
@@ -269,8 +296,10 @@ ALLOWED_ATTRIBUTES = {
 }
 
 # 安全的协议白名单 - 防止javascript:等危险协议
+# DH: 链接只允许 http、https、mailto，防止 javascript: 这种能执行代码的链接。
 ALLOWED_PROTOCOLS = ['http', 'https', 'mailto']
 
+# DH: 用 bleach 按白名单清洗 HTML，防止 XSS；最后再把空的 style 属性删掉。
 def sanitize_html(html):
     """
     安全的HTML清理函数

@@ -1,3 +1,5 @@
+# DH: 这个文件是整个网站的配置：数据库、缓存、邮件、搜索、插件、日志这些都在这里设。
+
 """
 Django settings for djangoblog project.
 
@@ -16,15 +18,18 @@ from pathlib import Path
 from django.utils.translation import gettext_lazy as _
 
 
+# DH: 把环境变量里的 True/False 转成真正的布尔值，没设置就用默认值。
 def env_to_bool(env, default):
     str_val = os.environ.get(env)
     return default if str_val is None else str_val == 'True'
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
+# DH: 项目的根目录，就是 manage.py 所在的那一层。
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+# DH: 读 .env 文件里的配置，一行一个 KEY=VALUE；已经存在的环境变量优先，不会被覆盖。
 def load_env_file(env_path):
     """把 .env 里的 KEY=VALUE 读进环境变量（已存在的环境变量优先）。"""
     if not env_path.is_file():
@@ -37,26 +42,33 @@ def load_env_file(env_path):
         os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
 
 
+# DH: 启动时先把 .env 读进来。
 load_env_file(BASE_DIR / '.env')
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.10/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
+# DH: 站点密钥，签名、加密会用到；正式环境要从环境变量里读，不能写死在代码里。
 SECRET_KEY = os.environ.get(
     'DJANGO_SECRET_KEY') or 'n9ceqv38)#&mwuat@(mjb_p%em$e8$qyr#fw9ot!=ba6lijx-6'
 # SECURITY WARNING: don't run with debug turned on in production!
+# DH: 调试开关，开发时 True，上线要改成 False。
 DEBUG = env_to_bool('DJANGO_DEBUG', True)
 # DEBUG = False
+# DH: 判断是不是在跑测试，测试时有些操作要跳过（比如通知百度）。
 TESTING = len(sys.argv) > 1 and sys.argv[1] == 'test'
 
 # ALLOWED_HOSTS = []
+# DH: 允许访问的域名，* 表示都行，正式环境要写具体域名。
 ALLOWED_HOSTS = ['*', '127.0.0.1', 'example.com']
 # django 4.0新增配置
+# DH: 允许跨站提交表单的地址。
 CSRF_TRUSTED_ORIGINS = ['http://example.com']
 # Application definition
 
 
+# DH: 网站用到的应用：Django 自带的、第三方插件、还有我们自己的应用。
 INSTALLED_APPS = [
     # 'django.contrib.admin',
     'django.contrib.admin.apps.SimpleAdminConfig',
@@ -78,25 +90,32 @@ INSTALLED_APPS = [
     'djangoblog'
 ]
 
+# DH: 中间件，请求进来和响应出去时会一层层经过这里。
 MIDDLEWARE = [
 
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    # DH: 根据浏览器语言自动切换中英文。
     'django.middleware.locale.LocaleMiddleware',
+    # DH: 把返回的内容压缩一下再发给浏览器，省流量。
     'django.middleware.gzip.GZipMiddleware',
     # 'django.middleware.cache.UpdateCacheMiddleware',
     'django.middleware.common.CommonMiddleware',
     # 'django.middleware.cache.FetchFromCacheMiddleware',
+    # DH: 表单提交的防伪造检查。
     'django.middleware.csrf.CsrfViewMiddleware',
+    # DH: 给每个请求挂上当前登录用户。
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'django.middleware.http.ConditionalGetMiddleware',
+    # DH: 我们自己的中间件，统计在线人数。
     'blog.middleware.OnlineMiddleware'
 ]
 
 ROOT_URLCONF = 'djangoblog.urls'
 
+# DH: 模板配置：模板放在 templates 目录，另外加了 SEO 的上下文处理器。
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -120,6 +139,7 @@ WSGI_APPLICATION = 'djangoblog.wsgi.application'
 # https://docs.djangoproject.com/en/1.10/ref/settings/#databases
 
 
+# DH: 数据库连接，默认 MySQL，账号密码可以用环境变量覆盖。
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
@@ -136,6 +156,7 @@ DATABASES = {
 # Password validation
 # https://docs.djangoproject.com/en/1.10/ref/settings/#auth-password-validators
 
+# DH: 密码强度检查：太短、太常见、全是数字都不让用。
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
@@ -151,6 +172,7 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+# DH: 支持的语言和时区，默认简体中文、上海时间。
 LANGUAGES = (
     ('en', _('English')),
     ('zh-hans', _('Simplified Chinese')),
@@ -171,6 +193,7 @@ USE_L10N = True
 USE_TZ = False
 
 # Session settings
+# DH: 登录有效期：不勾“记住我”默认 2 周，勾了 30 天。
 SESSION_COOKIE_AGE = 1209600  # 2周（Django默认值）
 REMEMBER_ME_LOGIN_TTL = 2626560  # 30天（勾选"记住我"时使用）
 
@@ -186,6 +209,7 @@ REMEMBER_ME_LOGIN_TTL = 2626560  # 30天（勾选"记住我"时使用）
 # 1. 生产环境：通过环境变量配置（见下方）
 # 2. 开发环境：手动配置（取消下面注释）
 
+# DH: 下面是 ES 的连接配置示例，开发时不用 ES 的话保持注释就行。
 # ELASTICSEARCH_DSL = {
 #     'default': {
 #         'hosts': 'http://127.0.0.1:9200',
@@ -222,6 +246,7 @@ REMEMBER_ME_LOGIN_TTL = 2626560  # 30天（勾选"记住我"时使用）
 #   - ELASTICSEARCH_CLIENT_CERT: 客户端证书路径
 #   - ELASTICSEARCH_CLIENT_KEY: 客户端私钥路径
 
+# DH: 环境变量里配了 ES 地址，就用 ES，并按需加上账号密码或证书。
 if os.environ.get('DJANGO_ELASTICSEARCH_HOST'):
     # 通过环境变量配置 Elasticsearch（生产环境）
     _es_config = {
@@ -248,6 +273,7 @@ if os.environ.get('DJANGO_ELASTICSEARCH_HOST'):
     ELASTICSEARCH_DSL = {'default': _es_config}
 
 # === Haystack 配置 ===
+# DH: 配了 ES 就接 ES，没配就用本地的 Whoosh，索引存在 whoosh_index 目录。
 if 'ELASTICSEARCH_DSL' in locals():
     # 使用 Elasticsearch
     HAYSTACK_CONNECTIONS = {
@@ -265,27 +291,35 @@ else:
     }
 
 # Automatically update searching index
+# DH: 文章一保存就自动更新索引，不用手动重建。
 HAYSTACK_SIGNAL_PROCESSOR = 'haystack.signals.RealtimeSignalProcessor'
 # Allow user login with username and password
+# DH: 登录方式：邮箱或用户名都能登录。
 AUTHENTICATION_BACKENDS = [
     'accounts.user_login_backend.EmailOrUsernameModelBackend']
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'collectedstatic')
 
+# DH: 静态文件的访问地址和源目录。
 STATIC_URL = '/static/'
 STATICFILES = os.path.join(BASE_DIR, 'static')
 
 # 添加插件静态文件目录
+# DH: 让 Django 也能找到插件目录里的静态文件。
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'plugins'),  # 让Django能找到插件的静态文件
 ]
 
 # Vite开发服务器URL（开发模式）
+# DH: 开发时前端 Vite 服务的地址。
 VITE_DEV_SERVER_URL = 'http://localhost:5173'
 
+# DH: 用我们自己的用户表，不用 Django 默认的。
 AUTH_USER_MODEL = 'accounts.BlogUser'
+# DH: 没登录时跳到这个地址。
 LOGIN_URL = '/login/'
 
+# DH: 页面上显示时间的格式。
 TIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 DATE_TIME_FORMAT = '%Y-%m-%d'
 
@@ -295,10 +329,13 @@ BOOTSTRAP_COLOR_TYPES = [
 ]
 
 # paginate
+# DH: 列表页一页显示 10 条。
 PAGINATE_BY = 10
 # http cache timeout
+# DH: 浏览器缓存静态文件的时间。
 CACHE_CONTROL_MAX_AGE = 2592000
 # cache setting
+# DH: 缓存配置：默认用本机内存缓存，设了 Redis 地址就改用 Redis。
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
@@ -307,6 +344,7 @@ CACHES = {
     }
 }
 # 使用redis作为缓存
+# DH: 环境变量里有 Redis 地址，就换成 Redis 缓存。
 if os.environ.get("DJANGO_REDIS_URL"):
     CACHES = {
         'default': {
@@ -315,11 +353,14 @@ if os.environ.get("DJANGO_REDIS_URL"):
         }
     }
 
+# DH: 当前站点编号，Django 的站点框架要用。
 SITE_ID = 1
+# DH: 百度推送地址，发文章后把链接推过去。
 BAIDU_NOTIFY_URL = os.environ.get('DJANGO_BAIDU_NOTIFY_URL') \
                    or 'http://data.zz.baidu.com/urls?site=https://www.lylinux.net&token=1uAOGrMsUm5syDGn'
 
 # Email:
+# DH: 发邮件用的 SMTP 配置（注册激活、找回密码、评论通知都靠它）。
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_USE_TLS = env_to_bool('DJANGO_EMAIL_TLS', False)
 EMAIL_USE_SSL = env_to_bool('DJANGO_EMAIL_SSL', True)
@@ -332,13 +373,16 @@ SERVER_EMAIL = EMAIL_HOST_USER
 # Setting debug=false did NOT handle except email notifications
 ADMINS = [('admin', os.environ.get('DJANGO_ADMIN_EMAIL') or 'admin@admin.com')]
 # WX ADMIN password(Two times md5)
+# DH: 微信机器人管理模式的密码（经过两次 md5）。
 WXADMIN = os.environ.get(
     'DJANGO_WXADMIN_PASSWORD') or '995F03AC401D6CABABAEF756FC4D43C7'
 
+# DH: 日志目录，没有就自动建一个。
 LOG_PATH = os.path.join(BASE_DIR, 'logs')
 if not os.path.exists(LOG_PATH):
     os.makedirs(LOG_PATH, exist_ok=True)
 
+# DH: 日志配置：写到 logs 目录，按天切分，保留 5 份；控制台只在调试时输出。
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -402,6 +446,7 @@ STATICFILES_FINDERS = (
     'compressor.finders.CompressorFinder',
 )
 # 开发模式下禁用压缩，使用Vite处理静态资源
+# DH: 开发环境用 Vite 处理静态资源，线上才启用压缩。
 COMPRESS_ENABLED = not DEBUG
 # 根据环境变量决定是否启用离线压缩
 COMPRESS_OFFLINE = os.environ.get('COMPRESS_OFFLINE', 'False').lower() == 'true'
@@ -454,15 +499,18 @@ STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesSto
 COMPRESS_URL = STATIC_URL
 COMPRESS_ROOT = STATIC_ROOT
 
+# DH: 用户上传的文件放 uploads 目录，访问地址是 /media/。
 MEDIA_ROOT = os.path.join(BASE_DIR, 'uploads')
 MEDIA_URL = '/media/'
 X_FRAME_OPTIONS = 'SAMEORIGIN'
 
 
 
+# DH: 新建表的主键默认用大整数自增。
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Plugin System
+# DH: 插件目录和启用的插件列表；不想用某个插件就从列表里删掉。
 PLUGINS_DIR = BASE_DIR / 'plugins'
 ACTIVE_PLUGINS = [
     'article_copyright',
@@ -474,4 +522,3 @@ ACTIVE_PLUGINS = [
     'article_recommendation',
     'cloudflare_cache',  # Cloudflare缓存管理插件
 ]
-

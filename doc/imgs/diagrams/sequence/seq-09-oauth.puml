@@ -1,0 +1,29 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+hide footbox
+autonumber
+
+actor "注册用户" as User
+boundary "登录页界面" as UI <<边界类>>
+control "第三方登录控制器" as Ctrl <<控制类>>
+entity "第三方账号" as EOAuth <<实体类>>
+entity "用户" as EUser <<实体类>>
+entity "会话" as ESession <<实体类>>
+actor "第三方登录平台" as OAuth
+
+User -> UI : 点击第三方登录按钮
+UI -> Ctrl : 发起第三方登录(type)
+activate Ctrl
+Ctrl -> OAuth : 重定向授权请求(appkey, callback)
+OAuth --> Ctrl : 授权信息(openid, 昵称, 邮箱)
+Ctrl -> EOAuth : 按 openid 查询绑定账号
+EOAuth --> Ctrl : 第三方账号（绑定用户）
+Ctrl -> EUser : 加载绑定用户
+EUser --> Ctrl : 用户信息
+Ctrl -> ESession : 创建登录会话
+ESession --> Ctrl : 会话标识
+Ctrl --> UI : 登录成功，重定向首页
+deactivate Ctrl
+UI -> User : 显示登录后的页面
+@enduml
