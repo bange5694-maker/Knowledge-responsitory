@@ -1,0 +1,215 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1120" viewBox="0 0 1800 1120">
+  <defs>
+    <marker id="arr-orange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#C2410C"/>
+    </marker>
+    <marker id="arr-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#2563EB"/>
+    </marker>
+    <marker id="arr-purple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#7C3AED"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1800" height="1120" fill="#FFFFFF"/>
+
+  <text x="50" y="48" font-family="Microsoft YaHei, sans-serif" font-size="27" font-weight="700" fill="#1F2937">「知识分享」博客 · 模板关系 UML 包图（第四周复核版）</text>
+  <text x="50" y="78" font-family="Microsoft YaHei, sans-serif" font-size="14" fill="#6B7280">依据 templates/ 中实际 {% extends %}、{% include %} 与 @register.inclusion_tag 扫描结果绘制；灰色为旧版未引用模板。</text>
+
+  <g font-family="Microsoft YaHei, sans-serif" font-size="13">
+    <line x1="1080" y1="40" x2="1120" y2="40" stroke="#C2410C" stroke-width="2" stroke-dasharray="7 5"/>
+    <text x="1128" y="44" fill="#374151">«extends» 继承</text>
+    <line x1="1260" y1="40" x2="1300" y2="40" stroke="#2563EB" stroke-width="2" stroke-dasharray="7 5"/>
+    <text x="1308" y="44" fill="#374151">«include» 包含</text>
+    <line x1="1440" y1="40" x2="1480" y2="40" stroke="#7C3AED" stroke-width="2" stroke-dasharray="7 5"/>
+    <text x="1488" y="44" fill="#374151">«inclusion_tag» 标签渲染</text>
+    <line x1="1080" y1="68" x2="1120" y2="68" stroke="#9CA3AF" stroke-width="2" stroke-dasharray="7 5"/>
+    <text x="1128" y="72" fill="#374151">灰色模板 = 旧版未引用</text>
+    <text x="1440" y="72" fill="#6B7280">页面通过 {% load ... %} 调用标签库</text>
+  </g>
+
+  <!-- blog package -->
+  <g font-family="Microsoft YaHei, sans-serif">
+    <rect x="50" y="120" width="430" height="235" rx="8" fill="#FFF9EC" stroke="#D9B25F" stroke-width="1.5"/>
+    <rect x="50" y="98" width="225" height="30" rx="6" fill="#F4D58D" stroke="#D9B25F" stroke-width="1.5"/>
+    <text x="62" y="118" font-size="14" font-weight="700" fill="#5B4300">«package» blog</text>
+    <text x="68" y="148" font-size="18" font-weight="700" fill="#3F2D00">文章页面包</text>
+    <text x="68" y="185" font-size="14" fill="#374151">article_index.html（首页 / 文章列表）</text>
+    <text x="68" y="209" font-size="14" fill="#374151">article_detail.html（文章详情，含评论区）</text>
+    <text x="68" y="233" font-size="14" fill="#374151">article_archives.html（归档）</text>
+    <text x="68" y="257" font-size="14" fill="#374151">links_list.html（友情链接）</text>
+    <text x="68" y="281" font-size="14" fill="#374151">error_page.html（404 / 500）</text>
+    <text x="68" y="316" font-size="12.5" fill="#8A6D1F">页面片段见下方 blog/tags 包</text>
+  </g>
+
+  <!-- search package -->
+  <g font-family="Microsoft YaHei, sans-serif">
+    <rect x="520" y="120" width="230" height="120" rx="8" fill="#FFF9EC" stroke="#D9B25F" stroke-width="1.5"/>
+    <rect x="520" y="98" width="190" height="30" rx="6" fill="#F4D58D" stroke="#D9B25F" stroke-width="1.5"/>
+    <text x="532" y="118" font-size="14" font-weight="700" fill="#5B4300">«package» search</text>
+    <text x="538" y="148" font-size="18" font-weight="700" fill="#3F2D00">搜索包</text>
+    <text x="538" y="185" font-size="14" fill="#374151">search.html（结果 + 侧边栏）</text>
+    <text x="538" y="212" font-size="12.5" fill="#8A6D1F">标题关键词高亮</text>
+  </g>
+
+  <!-- account package -->
+  <g font-family="Microsoft YaHei, sans-serif">
+    <rect x="790" y="120" width="340" height="200" rx="8" fill="#FFF9EC" stroke="#D9B25F" stroke-width="1.5"/>
+    <rect x="790" y="98" width="205" height="30" rx="6" fill="#F4D58D" stroke="#D9B25F" stroke-width="1.5"/>
+    <text x="802" y="118" font-size="14" font-weight="700" fill="#5B4300">«package» account</text>
+    <text x="808" y="148" font-size="18" font-weight="700" fill="#3F2D00">账户页面包</text>
+    <text x="808" y="183" font-size="14" fill="#374151">login.html（登录）</text>
+    <text x="808" y="207" font-size="14" fill="#374151">registration_form.html（注册）</text>
+    <text x="808" y="231" font-size="14" fill="#374151">forget_password.html（找回密码）</text>
+    <text x="808" y="255" font-size="14" fill="#374151">result.html（通用结果页）</text>
+    <text x="808" y="289" font-size="12.5" fill="#B91C1C">例外：result.html 实际继承 base.html</text>
+  </g>
+
+  <!-- oauth package -->
+  <g font-family="Microsoft YaHei, sans-serif">
+    <rect x="1170" y="120" width="360" height="200" rx="8" fill="#FFF9EC" stroke="#D9B25F" stroke-width="1.5"/>
+    <rect x="1170" y="98" width="190" height="30" rx="6" fill="#F4D58D" stroke="#D9B25F" stroke-width="1.5"/>
+    <text x="1182" y="118" font-size="14" font-weight="700" fill="#5B4300">«package» oauth</text>
+    <text x="1188" y="148" font-size="18" font-weight="700" fill="#3F2D00">第三方登录包</text>
+    <text x="1188" y="183" font-size="14" fill="#374151">oauth_applications.html（按钮片段）</text>
+    <text x="1188" y="207" font-size="14" fill="#374151">bindsuccess.html（绑定成功）</text>
+    <text x="1188" y="231" font-size="14" fill="#374151">require_email.html（补充邮箱）</text>
+    <text x="1188" y="263" font-size="12.5" fill="#B91C1C">bindsuccess → base.html</text>
+    <text x="1188" y="285" font-size="12.5" fill="#B91C1C">require_email → base_account.html</text>
+    <text x="1188" y="307" font-size="12" fill="#8A6D1F">oauth_applications 是被标签渲染的片段</text>
+  </g>
+
+  <!-- share_layout package -->
+  <g font-family="Microsoft YaHei, sans-serif">
+    <rect x="50" y="520" width="900" height="330" rx="8" fill="#FFF9EC" stroke="#D9B25F" stroke-width="1.5"/>
+    <rect x="50" y="498" width="300" height="30" rx="6" fill="#F4D58D" stroke="#D9B25F" stroke-width="1.5"/>
+    <text x="62" y="518" font-size="14" font-weight="700" fill="#5B4300">«package» share_layout</text>
+    <text x="68" y="548" font-size="18" font-weight="700" fill="#3F2D00">基础布局包（两套母版）</text>
+
+    <rect x="75" y="600" width="300" height="140" rx="6" fill="#FFFFFF" stroke="#E5C98A"/>
+    <text x="90" y="625" font-size="15" font-weight="700" fill="#374151">base.html：前台母版</text>
+    <text x="90" y="651" font-size="13" fill="#4B5563">head（SEO / 资源）</text>
+    <text x="90" y="673" font-size="13" fill="#4B5563">顶部导航 + 内容 block + 页脚</text>
+    <text x="90" y="695" font-size="13" fill="#4B5563">所有前台页面继承它</text>
+
+    <rect x="405" y="595" width="305" height="120" rx="6" fill="#FFFFFF" stroke="#E5C98A"/>
+    <text x="420" y="620" font-size="15" font-weight="700" fill="#374151">nav.html + footer.html</text>
+    <text x="420" y="645" font-size="13" fill="#4B5563">顶部导航 / 页脚</text>
+    <text x="420" y="667" font-size="13" fill="#4B5563">由 base.html 直接 include</text>
+    <text x="420" y="689" font-size="12.5" fill="#8A6D1F">nav 直接用分类查询渲染菜单</text>
+
+    <rect x="745" y="600" width="180" height="140" rx="6" fill="#FFFFFF" stroke="#E5C98A"/>
+    <text x="758" y="625" font-size="15" font-weight="700" fill="#374151">base_account.html</text>
+    <text x="758" y="650" font-size="13" fill="#4B5563">账户页简洁母版</text>
+    <text x="758" y="672" font-size="13" fill="#4B5563">不继承 base.html</text>
+    <text x="758" y="694" font-size="13" fill="#4B5563">登录 / 注册 / 找回</text>
+
+    <rect x="405" y="730" width="305" height="52" rx="6" fill="#F3F4F6" stroke="#9CA3AF" stroke-dasharray="5 4"/>
+    <text x="420" y="752" font-size="13" fill="#6B7280">nav_node.html / nav_node_mobile.html</text>
+    <text x="420" y="771" font-size="12" fill="#9CA3AF">旧版递归导航片段：全仓库无引用</text>
+
+    <text x="75" y="790" font-size="12.5" fill="#B91C1C">复核修正：nav.html 不包含 nav_node；包图中删除这条 include 边。</text>
+    <text x="75" y="812" font-size="12.5" fill="#6B7280">说明：share_layout 内部还有 adsense.html（预留，未启用），不影响主链路。</text>
+  </g>
+
+  <!-- templatetags package -->
+  <g font-family="Microsoft YaHei, sans-serif">
+    <rect x="990" y="500" width="380" height="230" rx="8" fill="#F5F3FF" stroke="#A78BFA" stroke-width="1.5"/>
+    <rect x="990" y="478" width="280" height="30" rx="6" fill="#DDD6FE" stroke="#A78BFA" stroke-width="1.5"/>
+    <text x="1002" y="498" font-size="14" font-weight="700" fill="#4C1D95">«package» templatetags</text>
+    <text x="1008" y="528" font-size="18" font-weight="700" fill="#3B0764">模板标签包</text>
+    <text x="1008" y="563" font-size="14" fill="#374151">blog_tags.py（9 个 inclusion_tag）</text>
+    <text x="1008" y="587" font-size="14" fill="#374151">comments_tags.py（1 个）</text>
+    <text x="1008" y="611" font-size="14" fill="#374151">oauth_tags.py（1 个）</text>
+    <text x="1008" y="635" font-size="14" fill="#374151">vite_tags.py（静态资源路径）</text>
+    <text x="1008" y="665" font-size="12.5" fill="#5B21B6">页面先 {% load 标签库 %}，再调用标签；</text>
+    <text x="1008" y="685" font-size="12.5" fill="#5B21B6">标签把“数据准备”与“HTML 片段”解耦。</text>
+    <text x="1008" y="709" font-size="12" fill="#6B7280">共 11 个包含标签，逐个核对见 02 文档。</text>
+  </g>
+
+  <!-- blog/tags package -->
+  <g font-family="Microsoft YaHei, sans-serif">
+    <rect x="50" y="900" width="430" height="160" rx="8" fill="#FFF9EC" stroke="#D9B25F" stroke-width="1.5"/>
+    <rect x="50" y="878" width="270" height="30" rx="6" fill="#F4D58D" stroke="#D9B25F" stroke-width="1.5"/>
+    <text x="62" y="898" font-size="14" font-weight="700" fill="#5B4300">«package» blog/tags</text>
+    <text x="68" y="928" font-size="18" font-weight="700" fill="#3F2D00">文章页面片段包</text>
+    <text x="68" y="958" font-size="13.5" fill="#374151">sidebar.html / breadcrumb.html</text>
+    <text x="68" y="980" font-size="13.5" fill="#374151">article_info.html / article_info_highlight.html</text>
+    <text x="68" y="1002" font-size="13.5" fill="#374151">article_meta_info.html / article_pagination.html</text>
+    <text x="68" y="1024" font-size="13.5" fill="#374151">article_tag_list.html</text>
+  </g>
+
+  <!-- comments package -->
+  <g font-family="Microsoft YaHei, sans-serif">
+    <rect x="520" y="900" width="380" height="160" rx="8" fill="#FFF9EC" stroke="#D9B25F" stroke-width="1.5"/>
+    <rect x="520" y="878" width="235" height="30" rx="6" fill="#F4D58D" stroke="#D9B25F" stroke-width="1.5"/>
+    <text x="532" y="898" font-size="14" font-weight="700" fill="#5B4300">«package» comments</text>
+    <text x="538" y="928" font-size="18" font-weight="700" fill="#3F2D00">评论界面包</text>
+    <text x="538" y="956" font-size="13.5" fill="#374151">comment_list_modern.html（列表）</text>
+    <text x="538" y="978" font-size="13.5" fill="#374151">comment_item_modern.html（单条，自包含递归）</text>
+    <text x="538" y="1000" font-size="13.5" fill="#374151">post_comment_modern.html（发表框）</text>
+    <text x="538" y="1026" font-size="12" fill="#6B7280">旧版 comment_list / item / tree 保留但未引用</text>
+    <text x="538" y="1046" font-size="12" fill="#2563EB">article_detail.html 直接 include 列表与表单</text>
+  </g>
+
+  <!-- plugins package -->
+  <g font-family="Microsoft YaHei, sans-serif">
+    <rect x="940" y="900" width="320" height="160" rx="8" fill="#FFF9EC" stroke="#D9B25F" stroke-width="1.5"/>
+    <rect x="940" y="878" width="235" height="30" rx="6" fill="#F4D58D" stroke="#D9B25F" stroke-width="1.5"/>
+    <text x="952" y="898" font-size="14" font-weight="700" fill="#5B4300">«package» plugins</text>
+    <text x="958" y="928" font-size="18" font-weight="700" fill="#3F2D00">插件模板包</text>
+    <text x="958" y="956" font-size="13" fill="#374151">article_recommendation/bottom_widget.html</text>
+    <text x="958" y="977" font-size="13" fill="#374151">article_recommendation/sidebar_widget.html</text>
+    <text x="958" y="998" font-size="13" fill="#374151">css_includes.html / js_includes.html</text>
+    <text x="958" y="1024" font-size="12" fill="#6B7280">由插件钩子 «render» 注入文章页 / 母版</text>
+  </g>
+
+  <!-- review notes -->
+  <g font-family="Microsoft YaHei, sans-serif">
+    <rect x="1300" y="900" width="450" height="160" rx="8" fill="#FEF2F2" stroke="#FCA5A5" stroke-width="1.5"/>
+    <text x="1316" y="928" font-size="16" font-weight="700" fill="#991B1B">复核结论（对应说明书 5.3 / 6.1）</text>
+    <text x="1316" y="956" font-size="13" fill="#7F1D1D">① nav_node 未被任何模板引用，删除 nav → nav_node 边</text>
+    <text x="1316" y="978" font-size="13" fill="#7F1D1D">② account/result.html 继承 base.html，不是 base_account</text>
+    <text x="1316" y="1000" font-size="13" fill="#7F1D1D">③ oauth 两页分别继承 base / base_account</text>
+    <text x="1316" y="1022" font-size="13" fill="#7F1D1D">④ 补记 comment_list → comment_item_tree（旧版）</text>
+    <text x="1316" y="1044" font-size="13" fill="#166534">⑤ 5.2 的 12 条继承关系与代码完全一致</text>
+  </g>
+
+  <!-- inheritance arrows -->
+  <g fill="none" stroke="#C2410C" stroke-width="2" stroke-dasharray="8 6">
+    <path d="M 265 355 V 520" marker-end="url(#arr-orange)"/>
+    <path d="M 635 240 V 470 H 430 V 520" marker-end="url(#arr-orange)"/>
+    <path d="M 960 320 V 490 H 620 V 520" marker-end="url(#arr-orange)"/>
+    <path d="M 1350 320 V 505 H 820 V 520" marker-end="url(#arr-orange)"/>
+  </g>
+  <g font-family="Microsoft YaHei, sans-serif" font-size="13" fill="#9A3412">
+    <g><rect x="275" y="430" width="86" height="22" rx="3" fill="#FFFFFF" opacity="0.92"/><text x="280" y="446">«extends»</text></g>
+    <g><rect x="442" y="447" width="86" height="22" rx="3" fill="#FFFFFF" opacity="0.92"/><text x="447" y="463">«extends»</text></g>
+    <g><rect x="632" y="467" width="86" height="22" rx="3" fill="#FFFFFF" opacity="0.92"/><text x="637" y="483">«extends»</text></g>
+    <g><rect x="832" y="487" width="86" height="22" rx="3" fill="#FFFFFF" opacity="0.92"/><text x="837" y="503">«extends»</text></g>
+  </g>
+
+  <!-- include: blog -> comments -->
+  <g fill="none" stroke="#2563EB" stroke-width="2" stroke-dasharray="8 6">
+    <path d="M 75 355 H 30 V 980 H 520" marker-end="url(#arr-blue)"/>
+    <path d="M 375 650 H 405" marker-end="url(#arr-blue)"/>
+  </g>
+  <g font-family="Microsoft YaHei, sans-serif" font-size="13" fill="#1D4ED8">
+    <text transform="rotate(-90 42 690)" x="42" y="690">«include» article_detail → 评论列表 / 表单</text>
+    <g><rect x="300" y="637" width="74" height="22" rx="3" fill="#FFFFFF" opacity="0.95"/><text x="305" y="653">«include»</text></g>
+  </g>
+
+  <!-- inclusion_tag arrows -->
+  <g fill="none" stroke="#7C3AED" stroke-width="2" stroke-dasharray="8 6">
+    <path d="M 1010 730 V 870 H 265 V 900" marker-end="url(#arr-purple)"/>
+    <path d="M 1080 730 V 885 H 710 V 900" marker-end="url(#arr-purple)"/>
+    <path d="M 1220 730 V 860 H 1100 V 900" marker-end="url(#arr-purple)"/>
+    <path d="M 1300 500 V 430 H 1350 V 320" marker-end="url(#arr-purple)"/>
+  </g>
+  <g font-family="Microsoft YaHei, sans-serif" font-size="13" fill="#5B21B6">
+    <g><rect x="400" y="845" width="122" height="22" rx="3" fill="#FFFFFF" opacity="0.95"/><text x="405" y="861">«inclusion_tag»</text></g>
+    <g><rect x="720" y="862" width="122" height="22" rx="3" fill="#FFFFFF" opacity="0.95"/><text x="725" y="878">«inclusion_tag»</text></g>
+    <g><rect x="1110" y="838" width="122" height="22" rx="3" fill="#FFFFFF" opacity="0.95"/><text x="1115" y="854">«inclusion_tag»</text></g>
+    <g><rect x="1308" y="405" width="122" height="22" rx="3" fill="#FFFFFF" opacity="0.95"/><text x="1313" y="421">«inclusion_tag»</text></g>
+  </g>
+</svg>
