@@ -54,7 +54,8 @@ git merge origin/main
 | `223fc9f` | 同步 main 分支最新内容，作为第四周实践任务基线 | 把 `L_branch` 更新到 `main` 的最新状态；解决 README 姓名冲突 |
 | `f727bb4` | docs(week4): 添加主题数据库验证与任务总览 | `README.md`、`01-数据库初始化与主题数据验证.md` |
 | `03fa288` | docs(week4): 复核模板继承/包含关系并重绘UML包图 | `02-模板关系复核与UML包图.md`、`03-界面设计说明书复核记录.md`、`模板关系清单.md`、修正版包图 PNG/SVG、`tools/audit_templates.py` |
-| 本次提交 | docs(week4): 记录分支提交与合并流程 | 本文件 |
+| `003ac39` | docs(week4): 记录分支提交与合并流程 | 本文件 |
+| `9e52e7d` | docs(week4): 修正 nav_node_mobile 递归说明 | `02-模板关系复核与UML包图.md` 的一处措辞 |
 
 作者信息（与仓库里 `L_branch` 原有提交一致）：
 
@@ -74,18 +75,29 @@ git push origin L_branch
 
 因为 `origin/L_branch`（`94c1c58`）是当前 `L_branch` 的祖先，这次是普通快进推送，不需要 `--force`。
 
+**推送结果（2026-11-11 已完成）**：
+
+```text
+94c1c58..9e52e7d  L_branch -> L_branch
+```
+
+远程 `refs/heads/L_branch` = `9e52e7d57ab5e372195c046453b55ca71b61051c`。
+
 ### 2. 在 GitHub 上发 PR
 
-打开：
+**已创建 PR #6**：
 
-<https://github.com/bange5694-maker/Knowledge-responsitory/compare/main...L_branch?expand=1>
+<https://github.com/bange5694-maker/Knowledge-responsitory/pull/6>
 
 - **base**：`main`
 - **compare**：`L_branch`
-- 标题建议：`第四周实践任务：数据库主题验证 + 模板关系复核（李子涵）`
-- 描述可直接粘贴本目录 `README.md` 的“任务对照”和“给组长的一句话”。
+- 标题：`第四周实践任务：数据库主题验证 + 模板关系复核（李子涵）`
 
-如果组长已经建了 `develop`，把 base 换成 `develop` 即可。
+如果组长后来建了 `develop`，把 PR 的 base 改成 `develop` 即可。
+
+如果想手动再开一个 PR，也可以打开：
+
+<https://github.com/bange5694-maker/Knowledge-responsitory/compare/main...L_branch?expand=1>
 
 ### 3. 通知组长
 
