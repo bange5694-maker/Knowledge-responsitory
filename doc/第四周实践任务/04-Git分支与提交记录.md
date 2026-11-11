@@ -40,13 +40,16 @@ git merge origin/main
 ## 二、本次提交记录
 
 ```text
-* 03fa288 (HEAD -> L_branch) docs(week4): 复核模板继承/包含关系并重绘UML包图
+* fce1456 docs(week4): 记录 PR #6 与远程推送结果
+* 9e52e7d docs(week4): 修正 nav_node_mobile 递归说明
+* 003ac39 docs(week4): 记录分支提交与合并流程
+* 03fa288 docs(week4): 复核模板继承/包含关系并重绘UML包图
 * f727bb4 docs(week4): 添加主题数据库验证与任务总览
 *   223fc9f 同步 main 分支最新内容，作为第四周实践任务基线
 |\
 | * 40ec54e (origin/main) 更新数据库初始化脚本（知识分享主题测试数据，已脱敏）
 ...
-* 94c1c58 (origin/L_branch) Update README.md
+* 94c1c58 Update README.md
 ```
 
 | 提交 | 说明 | 主要内容 |
@@ -56,6 +59,7 @@ git merge origin/main
 | `03fa288` | docs(week4): 复核模板继承/包含关系并重绘UML包图 | `02-模板关系复核与UML包图.md`、`03-界面设计说明书复核记录.md`、`模板关系清单.md`、修正版包图 PNG/SVG、`tools/audit_templates.py` |
 | `003ac39` | docs(week4): 记录分支提交与合并流程 | 本文件 |
 | `9e52e7d` | docs(week4): 修正 nav_node_mobile 递归说明 | `02-模板关系复核与UML包图.md` 的一处措辞 |
+| `fce1456` | docs(week4): 记录 PR #6 与远程推送结果 | 本文件、`README.md` |
 
 作者信息（与仓库里 `L_branch` 原有提交一致）：
 
@@ -78,10 +82,11 @@ git push origin L_branch
 **推送结果（2026-11-11 已完成）**：
 
 ```text
-94c1c58..9e52e7d  L_branch -> L_branch
+94c1c58..9e52e7d  L_branch -> L_branch   # 首次推送
+9e52e7d..fce1456  L_branch -> L_branch   # 补充 PR 记录后
 ```
 
-远程 `refs/heads/L_branch` = `9e52e7d57ab5e372195c046453b55ca71b61051c`。
+PR #6 的 head 会随分支新提交自动更新，以 GitHub 页面显示的最新 commit 为准。
 
 ### 2. 在 GitHub 上发 PR
 
