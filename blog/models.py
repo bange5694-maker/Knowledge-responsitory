@@ -1,3 +1,6 @@
+# HJJ: 博客核心数据模型模块，定义了文章、分类、标签、友情链接、侧边栏、站点配置等ORM模型，
+# HJJ: 包含缓存策略、SEO友好URL生成、浏览计数、评论缓存等核心业务逻辑
+
 import logging
 import re
 from abc import abstractmethod
@@ -19,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 class LinkShowType(models.TextChoices):
+    # HJJ: 友情链接展示位置枚举：首页、列表页、文章页、全部、轮播
     I = ('i', _('index'))
     L = ('l', _('list'))
     P = ('p', _('post'))
@@ -27,18 +31,22 @@ class LinkShowType(models.TextChoices):
 
 
 class BaseModel(models.Model):
+    # HJJ: 抽象基类，提供通用字段和基础方法，所有业务模型继承此类
     id = models.AutoField(primary_key=True)
     creation_time = models.DateTimeField(_('creation time'), default=now)
     last_modify_time = models.DateTimeField(_('modify time'), default=now)
 
     def save(self, *args, **kwargs):
+        # HJJ: 重写save方法，区分普通保存和仅更新浏览量的场景
         is_update_views = isinstance(
             self,
             Article) and 'update_fields' in kwargs and kwargs['update_fields'] == ['views']
         if is_update_views:
+            # HJJ: 浏览量自增场景：直接执行update避免触发其他字段更新
             Article.objects.filter(pk=self.pk).update(views=self.views)
         else:
             if 'slug' in self.__dict__:
+                # HJJ: 自动根据title或name字段生成URL友好的slug值
                 slug = getattr(
                     self, 'title') if 'title' in self.__dict__ else getattr(
                     self, 'name')
@@ -46,6 +54,7 @@ class BaseModel(models.Model):
             super().save(*args, **kwargs)
 
     def get_full_url(self):
+        # HJJ: 获取对象的完整URL（含域名），用于分享和SEO
         site = get_current_site().domain
         url = "https://{site}{path}".format(site=site,
                                             path=self.get_absolute_url())
@@ -56,11 +65,12 @@ class BaseModel(models.Model):
 
     @abstractmethod
     def get_absolute_url(self):
+        # HJJ: 子类必须实现，返回对象的相对URL路径
         pass
 
 
 class Article(BaseModel):
-    """文章"""
+    """HJJ: 文章模型，博客核心实体，支持Markdown编辑、多状态管理、分类标签关联"""
     STATUS_CHOICES = (
         ('d', _('Draft')),
         ('p', _('Published')),
@@ -107,6 +117,7 @@ class Article(BaseModel):
     tags = models.ManyToManyField('Tag', verbose_name=_('tag'), blank=True)
 
     def body_to_string(self):
+        # HJJ: 将Markdown正文转为字符串，供全文搜索等场景使用
         return self.body
 
     def __str__(self):
@@ -118,17 +129,18 @@ class Article(BaseModel):
         verbose_name_plural = verbose_name
         get_latest_by = 'id'
         indexes = [
-            # 优化列表查询：type + status + pub_time组合索引
+            # HJJ: 优化列表查询：type + status + pub_time组合索引
             models.Index(fields=['type', 'status', '-pub_time'], name='idx_type_status_pub'),
-            # 优化热门文章查询：status + views组合索引
+            # HJJ: 优化热门文章查询：status + views组合索引
             models.Index(fields=['status', '-views'], name='idx_status_views'),
-            # 优化作者文章查询：author + status + type组合索引
+            # HJJ: 优化作者文章查询：author + status + type组合索引
             models.Index(fields=['author', 'status', 'type'], name='idx_author_status_type'),
-            # 优化分类查询：category + status组合索引
+            # HJJ: 优化分类查询：category + status组合索引
             models.Index(fields=['category', 'status'], name='idx_category_status'),
         ]
 
     def get_absolute_url(self):
+        # HJJ: 生成文章详情页URL，格式：/article/{year}/{month}/{day}/{id}/
         return reverse('blog:detailbyid', kwargs={
             'article_id': self.id,
             'year': self.creation_time.year,
@@ -138,19 +150,22 @@ class Article(BaseModel):
 
     @cache_decorator(CacheTimeout.HOUR_10)
     def get_category_tree(self):
+        # HJJ: 获取文章所属分类的层级树（从最底层到根），结果缓存10小时
         tree = self.category.get_category_tree()
         names = list(map(lambda c: (c.name, c.get_absolute_url()), tree))
-
         return names
 
     def save(self, *args, **kwargs):
+        # HJJ: 调用父类save，由BaseModel处理slug生成逻辑
         super().save(*args, **kwargs)
 
     def viewed(self):
+        # HJJ: 文章浏览量自增方法，仅更新views字段避免触发其他信号
         self.views += 1
         self.save(update_fields=['views'])
 
     def comment_list(self):
+        # HJJ: 获取文章已启用的评论列表，带缓存机制减少数据库查询
         cache_key = CacheKey.ARTICLE_COMMENTS.format(article_id=self.id)
         value = cache.get(cache_key)
         if value:
@@ -163,24 +178,26 @@ class Article(BaseModel):
             return comments
 
     def get_admin_url(self):
+        # HJJ: 生成Django后台管理页面的编辑URL
         info = (self._meta.app_label, self._meta.model_name)
         return reverse('admin:%s_%s_change' % info, args=(self.pk,))
 
     @cache_decorator(expiration=CacheTimeout.HOUR_10)
     def next_article(self):
-        # 下一篇
+        # HJJ: 获取下一篇文章（按ID递增），结果缓存10小时
         return Article.objects.filter(
             id__gt=self.id, status='p').order_by('id').first()
 
     @cache_decorator(expiration=CacheTimeout.HOUR_10)
     def prev_article(self):
-        # 前一篇
+        # HJJ: 获取上一篇文章（按ID递减），结果缓存10小时
         return Article.objects.filter(id__lt=self.id, status='p').first()
 
     def get_first_image_url(self):
         """
-        Get the first image url from article.body.
-        :return:
+        HJJ: 从文章Markdown正文中提取第一张图片的URL
+        参数: 无
+        返回: str - 图片URL，未找到则返回空字符串
         """
         match = re.search(r'!\[.*?\]\((.+?)\)', self.body)
         if match:
@@ -189,7 +206,7 @@ class Article(BaseModel):
 
 
 class Category(BaseModel):
-    """文章分类"""
+    """HJJ: 文章分类模型，支持无限极父子分类嵌套"""
     name = models.CharField(_('category name'), max_length=30, unique=True)
     parent_category = models.ForeignKey(
         'self',
@@ -206,6 +223,7 @@ class Category(BaseModel):
         verbose_name_plural = verbose_name
 
     def get_absolute_url(self):
+        # HJJ: 生成分类详情页URL，使用slug而非ID
         return reverse(
             'blog:category_detail', kwargs={
                 'category_name': self.slug})
@@ -216,8 +234,9 @@ class Category(BaseModel):
     @cache_decorator(CacheTimeout.HOUR_10)
     def get_category_tree(self):
         """
-        递归获得分类目录的父级
-        :return:
+        HJJ: 递归获取当前分类的所有父级分类链（从自身到根）
+        参数: 无
+        返回: list[Category] - 按从子到父顺序排列的分类列表
         """
         categorys = []
 
@@ -232,8 +251,9 @@ class Category(BaseModel):
     @cache_decorator(CacheTimeout.HOUR_10)
     def get_sub_categorys(self):
         """
-        获得当前分类目录所有子集
-        :return:
+        HJJ: 递归获取当前分类下的所有子分类（含子孙级）
+        参数: 无
+        返回: list[Category] - 所有后代分类的列表
         """
         categorys = []
         all_categorys = Category.objects.all()
@@ -252,7 +272,7 @@ class Category(BaseModel):
 
 
 class Tag(BaseModel):
-    """文章标签"""
+    """HJJ: 文章标签模型，与Article为多对多关系"""
     name = models.CharField(_('tag name'), max_length=30, unique=True)
     slug = models.SlugField(default='no-slug', max_length=60, blank=True)
 
@@ -260,10 +280,12 @@ class Tag(BaseModel):
         return self.name
 
     def get_absolute_url(self):
+        # HJJ: 生成标签详情页URL，使用slug
         return reverse('blog:tag_detail', kwargs={'tag_name': self.slug})
 
     @cache_decorator(CacheTimeout.HOUR_10)
     def get_article_count(self):
+        # HJJ: 获取该标签下的文章数量（去重），结果缓存10小时
         return Article.objects.filter(tags__name=self.name).distinct().count()
 
     class Meta:
@@ -273,8 +295,7 @@ class Tag(BaseModel):
 
 
 class Links(models.Model):
-    """友情链接"""
-
+    """HJJ: 友情链接模型，支持排序、启用/禁用、按页面类型展示"""
     name = models.CharField(_('link name'), max_length=30, unique=True)
     link = models.URLField(_('link'))
     sequence = models.IntegerField(_('order'), unique=True)
@@ -298,7 +319,7 @@ class Links(models.Model):
 
 
 class SideBar(models.Model):
-    """侧边栏,可以展示一些html内容"""
+    """HJJ: 侧边栏模型，可自定义HTML内容，支持排序和启用控制"""
     name = models.CharField(_('title'), max_length=100)
     content = models.TextField(_('content'))
     sequence = models.IntegerField(_('order'), unique=True)
@@ -316,7 +337,7 @@ class SideBar(models.Model):
 
 
 class BlogSettings(models.Model):
-    """blog的配置"""
+    """HJJ: 博客全局配置模型（单例模式），管理站点信息、主题配色、SEO、统计代码等"""
 
     COLOR_SCHEMES = (
         ('purple', _('紫色主题 - Purple Dream')),
@@ -396,10 +417,12 @@ class BlogSettings(models.Model):
         return self.site_name
 
     def clean(self):
+        # HJJ: 校验确保全站只有一条配置记录（单例模式）
         if BlogSettings.objects.exclude(id=self.id).count():
             raise ValidationError(_('There can only be one configuration'))
 
     def save(self, *args, **kwargs):
+        # HJJ: 保存配置后清空全站缓存，使新配置立即生效
         super().save(*args, **kwargs)
         from djangoblog.utils import cache
         cache.clear()
