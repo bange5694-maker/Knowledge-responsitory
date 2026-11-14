@@ -83,6 +83,12 @@ class Article(BaseModel):
         ('a', _('Article')),
         ('p', _('Page')),
     )
+    AI_STATUS_CHOICES = (
+        ('pending', _('Pending')),
+        ('done', _('Done')),
+        ('failed', _('Failed')),
+        ('stale', _('Stale')),
+    )
     title = models.CharField(_('title'), max_length=200, unique=True)
     body = MDTextField(_('body'))
     pub_time = models.DateTimeField(
@@ -115,6 +121,21 @@ class Article(BaseModel):
         blank=False,
         null=False)
     tags = models.ManyToManyField('Tag', verbose_name=_('tag'), blank=True)
+    # DH: AI 问答生成的文章摘要、要点、受众、关键词及生成状态
+    ai_summary = models.TextField(_('ai summary'), blank=True, default='')
+    ai_highlights = models.JSONField(
+        _('ai highlights'), default=list, blank=True)
+    ai_audience = models.TextField(_('ai audience'), blank=True, default='')
+    ai_keywords = models.JSONField(_('ai keywords'), default=list, blank=True)
+    ai_status = models.CharField(
+        _('ai status'),
+        max_length=10,
+        choices=AI_STATUS_CHOICES,
+        default='pending')
+    ai_generated_at = models.DateTimeField(
+        _('ai generated at'), null=True, blank=True)
+    ai_model = models.CharField(
+        _('ai model'), max_length=50, blank=True, default='')
 
     def body_to_string(self):
         # HJJ: 将Markdown正文转为字符串，供全文搜索等场景使用
@@ -156,6 +177,32 @@ class Article(BaseModel):
         return names
 
     def save(self, *args, **kwargs):
+        # DH: 仅更新浏览量时直接走父类快捷路径，不触发 AI 内容失效判断
+        update_fields = kwargs.get('update_fields')
+        if update_fields == ['views']:
+            super().save(*args, **kwargs)
+            return
+
+        # DH: update_fields 为空时按 Django 约定视为 no-op，不做 stale 判断
+        if update_fields is not None and not update_fields:
+            super().save(*args, **kwargs)
+            return
+
+        # DH: 已生成 AI 内容的文章，标题或正文变化后标记为 stale
+        if self.pk and self.ai_status == 'done':
+            old_article = Article.objects.filter(pk=self.pk).values(
+                'title', 'body').first()
+            if old_article and (
+                    old_article['title'] != self.title
+                    or old_article['body'] != self.body):
+                self.ai_status = 'stale'
+                # DH: update_fields 未包含 ai_status 时补进去，确保 stale 落库
+                if update_fields:
+                    update_fields = list(update_fields)
+                    if 'ai_status' not in update_fields:
+                        update_fields.append('ai_status')
+                    kwargs['update_fields'] = update_fields
+
         # HJJ: 调用父类save，由BaseModel处理slug生成逻辑
         super().save(*args, **kwargs)
 

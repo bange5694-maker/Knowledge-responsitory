@@ -45,6 +45,16 @@ def load_env_file(env_path):
 # DH: 启动时先把 .env 读进来。
 load_env_file(BASE_DIR / '.env')
 
+# DH: AI 问答功能配置；AI_ENABLED 兼容 .env 里的小写 true。
+AI_ENABLED = (os.environ.get('AI_ENABLED') or '').strip().lower() in (
+    '1', 'true', 'yes', 'on')
+AI_BASE_URL = os.environ.get('AI_BASE_URL') or 'https://api.deepseek.com'
+AI_API_KEY = os.environ.get('AI_API_KEY') or ''
+AI_MODEL = os.environ.get('AI_MODEL') or 'deepseek-chat'
+AI_TIMEOUT = int(os.environ.get('AI_TIMEOUT') or 30)
+AI_MAX_TOKENS = int(os.environ.get('AI_MAX_TOKENS') or 800)
+AI_INDEX_VERSION = os.environ.get('AI_INDEX_VERSION') or '1'
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.10/howto/deployment/checklist/
 
