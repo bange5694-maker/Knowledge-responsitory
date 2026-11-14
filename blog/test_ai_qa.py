@@ -269,3 +269,156 @@ class AIClientTest(SimpleTestCase):
                     self._stub_success(mock_openai, content=content)
                     with self.assertRaises(AIClientError):
                         AIClient.chat(MESSAGES)
+
+
+# =============================================================================
+# M2：CommentIndex + 普通搜索隔离
+#
+# 契约来源：
+# - doc/第9-10周任务/_tdd/M2.md §3.1、§3.2、§3.3、§4
+# - doc/第9-10周任务/AI功能规格说明.md §4.5、§4.6
+# - doc/第9-10周任务/实施计划-丁昊-AI问答.md §6、§11.3、§11.4、§12.1
+#
+# 说明：
+# - `CommentIndex` 在 M2 实现前不存在，因此只在 `CommentIndexTest.setUp`
+#   内部导入，避免 M1 测试在模块导入阶段一起失败。
+# - 普通搜索测试只检查 `form.searchqueryset.query.models`，不调用
+#   `form.search()`，不触发真实 Whoosh 查询。
+# =============================================================================
+
+from django.template.loader import render_to_string  # noqa: E402
+from django.test import RequestFactory, TestCase  # noqa: E402
+
+from haystack.query import SearchQuerySet  # noqa: E402
+
+from blog.views import EsSearchView  # noqa: E402
+from comments.models import Comment  # noqa: E402
+
+
+class CommentIndexTest(BaseTestCase):
+    """SPEC: _tdd/M2.md §3.1、§3.2、§4.1；AI功能规格说明 §4.5。"""
+
+    def setUp(self):
+        super().setUp()
+        # M2 实现前 ImportError 属于预期的红；放在 setUp 避免污染 M1 导入。
+        from blog.search_indexes import CommentIndex
+
+        self.index = CommentIndex()
+
+    def _create_comment(self, body, article=None, is_enable=True):
+        """直接用 ORM 创建评论，显式设置 is_enable（不依赖 create_comment 默认值）。"""
+        return Comment.objects.create(
+            body=body,
+            author=self.user,
+            article=article if article is not None else self.article,
+            is_enable=is_enable,
+        )
+
+    def _reload_comment(self, comment):
+        """重新取 comment（连带 author/article），避免读到缓存的旧 author。"""
+        return Comment.objects.select_related('author', 'article').get(pk=comment.pk)
+
+    def test_get_model_returns_comment(self):
+        """SPEC: M2 §3.1 / §4.1.1 —— get_model() 返回 comments.models.Comment。"""
+        self.assertIs(self.index.get_model(), Comment)
+
+    def test_index_queryset_only_enabled_comments_on_published_articles(self):
+        """SPEC: M2 §3.1 / §4.1.2；实施计划 §11.3 —— 仅 is_enable=True 且文章 status='p'。"""
+        published_enabled = self._create_comment('已发布-启用评论', is_enable=True)
+        published_disabled = self._create_comment('已发布-禁用评论', is_enable=False)
+
+        draft = self.create_article(title='草稿文章', status='d')
+        draft_enabled = self._create_comment(
+            '草稿-启用评论', article=draft, is_enable=True
+        )
+        draft_disabled = self._create_comment(
+            '草稿-禁用评论', article=draft, is_enable=False
+        )
+
+        ids = set(self.index.index_queryset().values_list('id', flat=True))
+
+        self.assertEqual(
+            ids,
+            {published_enabled.id},
+            msg=(
+                'index_queryset 应只含“已发布文章 + is_enable=True”的评论；'
+                f'被排除的评论 id: {published_disabled.id}, '
+                f'{draft_enabled.id}, {draft_disabled.id}'
+            ),
+        )
+
+    def test_index_template_includes_title_body_author(self):
+        """SPEC: M2 §3.2 / §4.1.3 —— 索引模板渲染出文章标题、评论正文、作者昵称/用户名。"""
+        body = '这是评论正文-唯一片段'
+        comment = self._create_comment(body=body)
+
+        self.user.nickname = '模板昵称'
+        self.user.save(update_fields=['nickname'])
+        comment = self._reload_comment(comment)
+
+        rendered = render_to_string(
+            'search/indexes/comments/comment_text.txt', {'object': comment}
+        )
+
+        self.assertIn(self.article.title, rendered)
+        self.assertIn(body, rendered)
+        self.assertIn(self.user.username, rendered)
+        self.assertIn('模板昵称', rendered)
+
+    def test_prepare_author_prefers_nickname(self):
+        """SPEC: M2 §3.1 / §4.1.4 —— 昵称非空时 prepare_author 返回昵称。"""
+        comment = self._create_comment('昵称优先评论')
+
+        self.user.nickname = '测试昵称'
+        self.user.save(update_fields=['nickname'])
+        comment = self._reload_comment(comment)
+
+        self.assertEqual(self.index.prepare_author(comment), '测试昵称')
+
+    def test_prepare_author_falls_back_to_username(self):
+        """SPEC: M2 §3.1 / §4.1.5 —— 昵称为空时 prepare_author 回退到 username。"""
+        comment = self._create_comment('昵称回退评论')
+
+        self.user.nickname = ''
+        self.user.save(update_fields=['nickname'])
+        comment = self._reload_comment(comment)
+
+        self.assertEqual(self.index.prepare_author(comment), self.user.username)
+
+    def test_prepare_article_title(self):
+        """SPEC: M2 §3.1 / §4.1.6 —— prepare_article_title 返回所属文章标题。"""
+        comment = self._create_comment('文章标题评论')
+
+        self.assertEqual(
+            self.index.prepare_article_title(comment), self.article.title
+        )
+
+
+class SearchIsolationTest(TestCase):
+    """SPEC: _tdd/M2.md §3.3、§4.2；实施计划 §6.3、§11.4；AI功能规格说明 §4.6。"""
+
+    def setUp(self):
+        self.factory = RequestFactory()
+
+    def _build_form(self, view):
+        """构造 request 后调用 build_form；不执行 form.search()。"""
+        view.request = self.factory.get('/search/', {'q': 'test'})
+        return view.build_form()
+
+    def test_build_form_limits_to_article_without_searchqueryset(self):
+        """SPEC: M2 §3.3 / §4.2.1 —— 无 searchqueryset 时也只搜 Article。"""
+        form = self._build_form(EsSearchView())
+
+        self.assertEqual(form.searchqueryset.query.models, {Article})
+
+    def test_build_form_limits_to_article_with_searchqueryset(self):
+        """SPEC: M2 §3.3 / §4.2.2 —— 已有 searchqueryset 时仍限制为 Article。"""
+        form = self._build_form(EsSearchView(searchqueryset=SearchQuerySet()))
+
+        self.assertEqual(form.searchqueryset.query.models, {Article})
+
+    def test_comment_model_not_in_search_models(self):
+        """SPEC: M2 §4.2.3；AI功能规格说明 §4.6 —— 普通搜索集合不含 Comment。"""
+        form = self._build_form(EsSearchView())
+
+        self.assertNotIn(Comment, form.searchqueryset.query.models)

@@ -340,9 +340,10 @@ class EsSearchView(SearchView):
         # HJJ: 启用搜索结果高亮
         from haystack.query import SearchQuerySet
         if self.searchqueryset is None:
-            sqs = SearchQuerySet().highlight()
+            sqs = SearchQuerySet().models(Article).highlight()
         else:
-            sqs = self.searchqueryset.highlight()
+            self.searchqueryset = self.searchqueryset.models(Article).highlight()
+            sqs = self.searchqueryset
 
         form_kwargs['searchqueryset'] = sqs
         return super().build_form(form_kwargs=form_kwargs)
