@@ -535,6 +535,9 @@ class RetrieveSourcesTest(BaseTestCase):
         """patch 三个检索入口后调用 retrieve_sources，返回结果和 mock。"""
         kwargs.setdefault('question', '测试问题')
         with (
+            patch(
+                'blog.ai_qa.rewrite_search_query', return_value=[], create=True
+            ),
             patch('blog.ai_qa.get_current_article') as mock_current,
             patch('blog.ai_qa.search_articles') as mock_articles,
             patch('blog.ai_qa.search_comments') as mock_comments,
@@ -1152,6 +1155,20 @@ class AnswerQuestionTest(SimpleTestCase):
                 self.answer_question('测试问题')
 
         self.assertEqual(str(ctx.exception), '上游失败')
+
+    def test_answer_question_passes_history_to_retrieval(self):
+        """SPEC: _tdd/R1.md §3.3、§4.3 —— answer_question 把 history 传给 retrieve_sources。"""
+        history = [{'question': 'q1', 'answer': 'a1'}]
+
+        with (
+            patch('blog.ai_qa.retrieve_sources') as mock_retrieve,
+            patch('blog.ai_qa.AIClient.chat') as mock_chat,
+        ):
+            mock_retrieve.return_value = self.RetrievalResult(sources=[])
+            mock_chat.return_value = '不应被调用'
+            self.answer_question('q', history=history)
+
+        self.assertEqual(mock_retrieve.call_args.kwargs['history'], history)
 
 
 # =============================================================================
@@ -1888,3 +1905,303 @@ class SearchPageEntryTest(BaseTestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, '用自然语言问站内内容')
+
+
+# =============================================================================
+# R1：AI 关键词改写
+#
+# 契约来源：
+# - doc/第9-10周任务/_tdd/R1.md §3.1、§3.2、§3.3、§4
+# - doc/第9-10周任务/修复计划-AI关键词改写与引用块.md §2.2、§2.3
+# - doc/第9-10周任务/实施计划-丁昊-AI问答.md §7
+#
+# 说明：
+# - `rewrite_search_query` 在 R1 实现前不存在，因此在测试类 setUp 内部导入；
+#   检索测试 patch 改写函数时使用 create=True。
+# - 改写测试只 patch `blog.ai_qa.AIClient.chat`，不真调 DeepSeek。
+# - 检索测试只 patch `rewrite_search_query` + 三个检索入口，不真调 AI/Whoosh。
+# =============================================================================
+
+
+class KeywordRewriteTest(SimpleTestCase):
+    """SPEC: _tdd/R1.md §3.1、§4.1；修复计划 §2.2。"""
+
+    def setUp(self):
+        # 实现前 ImportError 属于预期的红；放在 setUp 避免污染其他测试类。
+        from blog.ai_qa import rewrite_search_query
+
+        self.rewrite_search_query = rewrite_search_query
+
+    def _rewrite(self, chat_result=None, side_effect=None, **kwargs):
+        """patch AIClient.chat 后调用 rewrite_search_query，返回结果与 mock。"""
+        with patch('blog.ai_qa.AIClient.chat') as mock_chat:
+            if side_effect is not None:
+                mock_chat.side_effect = side_effect
+            else:
+                mock_chat.return_value = chat_result
+            result = self.rewrite_search_query(**kwargs)
+        return result, mock_chat
+
+    @staticmethod
+    def _messages(mock_chat):
+        """从 AIClient.chat 调用中取出 messages（兼容位置/关键字传参）。"""
+        args, kwargs = mock_chat.call_args
+        return args[0] if args else kwargs['messages']
+
+    def test_valid_json_returns_keywords(self):
+        """SPEC: R1 §3.1 / §4.1.1 —— 合法 JSON 返回 keywords 列表。"""
+        result, _ = self._rewrite(
+            '{"keywords": ["Git", "分支"]}', question='怎么用 Git 分支'
+        )
+
+        self.assertEqual(result, ['Git', '分支'])
+
+    def test_json_with_code_fence_and_text_is_parsed(self):
+        """SPEC: R1 §3.1 / §4.1.2 —— 代码块和前后杂文本中截取 JSON。"""
+        result, _ = self._rewrite(
+            '结果如下：\n```json\n{"keywords": ["Git"]}\n```\n完成',
+            question='Git',
+        )
+
+        self.assertEqual(result, ['Git'])
+
+    def test_invalid_json_returns_empty_list(self):
+        """SPEC: R1 §3.1 / §4.1.3 —— 完全无法解析 → []。"""
+        result, _ = self._rewrite('不是 JSON', question='问题')
+
+        self.assertEqual(result, [])
+
+    def test_keywords_not_list_returns_empty_list(self):
+        """SPEC: R1 §3.1 / §4.1.4 —— keywords 不是 list → []。"""
+        result, _ = self._rewrite('{"keywords": "Git"}', question='问题')
+
+        self.assertEqual(result, [])
+
+    def test_empty_keywords_returns_empty_list(self):
+        """SPEC: R1 §3.1 / §4.1.5 —— keywords 为空列表 → []。"""
+        result, _ = self._rewrite('{"keywords": []}', question='问题')
+
+        self.assertEqual(result, [])
+
+    def test_ai_client_error_returns_empty_list(self):
+        """SPEC: R1 §3.1 / §4.1.6 —— AIClientError 被吞掉，返回 [] 不抛出。"""
+        result, _ = self._rewrite(
+            side_effect=AIClientError('boom'), question='问题'
+        )
+
+        self.assertEqual(result, [])
+
+    def test_filters_dedupes_and_limits_keywords(self):
+        """SPEC: R1 §3.1 / §4.1.7 —— 去非字符串/空串、strip、去重、≤5 个、每个 ≤30 字。"""
+        payload = json.dumps(
+            {
+                'keywords': [
+                    'Git',
+                    'Git',
+                    '',
+                    '  分支  ',
+                    123,
+                    'a' * 31,
+                    'k1',
+                    'k2',
+                    'k3',
+                    'k4',
+                ]
+            },
+            ensure_ascii=False,
+        )
+
+        result, _ = self._rewrite(payload, question='去重')
+
+        self.assertEqual(result, ['Git', '分支', 'k1', 'k2', 'k3'])
+        self.assertEqual(result.count('Git'), 1)
+        self.assertNotIn('a' * 31, result)
+        self.assertNotIn('k4', result)
+        self.assertTrue(all(isinstance(keyword, str) for keyword in result))
+        self.assertTrue(all(len(keyword) <= 30 for keyword in result))
+
+    def test_prompt_contains_question_selected_text_and_history(self):
+        """SPEC: R1 §3.1 / §4.1.8 —— system/user 提示包含规定字段与安全文案。"""
+        history = [{'question': 'q1', 'answer': 'a1'}]
+
+        _, mock_chat = self._rewrite(
+            '{"keywords": ["Git"]}',
+            question='问题',
+            selected_text='选中段落',
+            history=history,
+        )
+
+        messages = self._messages(mock_chat)
+        self.assertEqual(len(messages), 2)
+        self.assertEqual(messages[0]['role'], 'system')
+        self.assertEqual(messages[1]['role'], 'user')
+
+        system_content = messages[0]['content']
+        user_content = messages[1]['content']
+        for token in ('只输出 JSON', '关键词'):
+            with self.subTest(system_token=token):
+                self.assertIn(token, system_content)
+        for token in ('问题', '选中段落', 'q1', 'a1'):
+            with self.subTest(user_token=token):
+                self.assertIn(token, user_content)
+
+    def test_calls_ai_client_every_time(self):
+        """SPEC: R1 §3.1 / §4.1.9 —— 不缓存：同一问题两次调用 → chat 两次。"""
+        with patch('blog.ai_qa.AIClient.chat') as mock_chat:
+            mock_chat.return_value = '{"keywords": ["Git"]}'
+            first = self.rewrite_search_query('同一问题')
+            second = self.rewrite_search_query('同一问题')
+
+        self.assertEqual(first, ['Git'])
+        self.assertEqual(second, ['Git'])
+        self.assertEqual(mock_chat.call_count, 2)
+
+
+class RetrieveSourcesRewriteTest(BaseTestCase):
+    """SPEC: _tdd/R1.md §3.2、§4.2；修复计划 §2.3。"""
+
+    def setUp(self):
+        super().setUp()
+        from blog.ai_qa import build_retrieval_query, retrieve_sources
+
+        self.build_retrieval_query = build_retrieval_query
+        self.retrieve_sources = retrieve_sources
+
+    def _retrieve(self, keywords, articles=None, comments=None, current=None, **kwargs):
+        """patch 改写和三个检索入口后调用 retrieve_sources。
+
+        articles/comments 传 list 时作为 return_value；传可调用对象时作为
+        side_effect，用于按 query 返回不同结果。
+        """
+        kwargs.setdefault('question', '测试问题')
+        with (
+            patch(
+                'blog.ai_qa.rewrite_search_query',
+                return_value=keywords,
+                create=True,
+            ) as mock_rewrite,
+            patch('blog.ai_qa.get_current_article') as mock_current,
+            patch('blog.ai_qa.search_articles') as mock_articles,
+            patch('blog.ai_qa.search_comments') as mock_comments,
+        ):
+            mock_current.return_value = current
+            for mock, value in (
+                (mock_articles, articles),
+                (mock_comments, comments),
+            ):
+                if callable(value):
+                    mock.side_effect = value
+                else:
+                    mock.return_value = list(value or [])
+            result = self.retrieve_sources(**kwargs)
+        return result, mock_rewrite, mock_current, mock_articles, mock_comments
+
+    def test_uses_rewritten_keywords_for_search(self):
+        """SPEC: R1 §3.2(1)(3) / §4.2.1 —— 文章和评论都用关键词检索。"""
+        related = self.create_article(title='改写检索文章')
+
+        result, mock_rewrite, _, mock_articles, mock_comments = self._retrieve(
+            ['Git', '分支'],
+            articles=[related],
+            comments=[],
+        )
+
+        mock_rewrite.assert_called_once()
+        self.assertEqual(mock_articles.call_args[0][0], 'Git 分支')
+        self.assertEqual(mock_comments.call_args[0][0], 'Git 分支')
+        self.assertEqual(
+            [source.title for source in result.sources], [related.title]
+        )
+
+    def test_falls_back_to_original_query_when_keywords_return_nothing(self):
+        """SPEC: R1 §3.2(4) / §4.2.2 —— 关键词文章和评论都 0 条 → 原问题再搜一次。"""
+        question = '测试问题'
+        related = self.create_article(title='回退相关文章')
+        original_query = self.build_retrieval_query(question, '')
+
+        def articles_side_effect(query, *args, **kwargs):
+            return [] if query == 'Git 分支' else [related]
+
+        def comments_side_effect(query, *args, **kwargs):
+            return []
+
+        result, _, _, mock_articles, _ = self._retrieve(
+            ['Git', '分支'],
+            articles=articles_side_effect,
+            comments=comments_side_effect,
+            question=question,
+        )
+
+        self.assertEqual(mock_articles.call_count, 2)
+        self.assertEqual(mock_articles.call_args_list[0][0][0], 'Git 分支')
+        self.assertEqual(mock_articles.call_args_list[1][0][0], original_query)
+        self.assertIn(
+            related.title, [source.title for source in result.sources]
+        )
+
+    def test_returns_empty_sources_when_original_also_empty(self):
+        """SPEC: R1 §3.2(4)(5) / §4.2.3 —— 原问题也 0 条 → sources 为空。"""
+        result, _, _, mock_articles, _ = self._retrieve(
+            ['Git', '分支'],
+            articles=[],
+            comments=[],
+            current=None,
+        )
+
+        self.assertEqual(result.sources, [])
+        self.assertEqual(mock_articles.call_count, 2)
+
+    def test_empty_keywords_uses_original_query_only(self):
+        """SPEC: R1 §3.2(1)(5) / §4.2.4 —— 改写失败/空 → 只用原问题检索一次。"""
+        question = '测试问题'
+        related = self.create_article(title='原问题检索文章')
+        original_query = self.build_retrieval_query(question, '')
+
+        result, _, _, mock_articles, mock_comments = self._retrieve(
+            [],
+            articles=[related],
+            comments=[],
+            question=question,
+        )
+
+        self.assertEqual(mock_articles.call_count, 1)
+        self.assertEqual(mock_articles.call_args[0][0], original_query)
+        self.assertEqual(mock_comments.call_count, 1)
+        self.assertEqual(mock_comments.call_args[0][0], original_query)
+        self.assertEqual(
+            [source.title for source in result.sources], [related.title]
+        )
+
+    def test_full_natural_language_question_with_rewrite_returns_sources(self):
+        """SPEC: R1 §3.2 / §4.2.5 —— 整句提问 + 改写关键词 → 非空 sources。"""
+        question = '站内有哪些关于 Git 分支的文章？'
+        related = self.create_article(title='Git 分支实践')
+
+        result, _, _, _, _ = self._retrieve(
+            ['Git', '分支'],
+            articles=[related],
+            comments=[],
+            question=question,
+        )
+
+        self.assertTrue(result.sources)
+        self.assertIn(
+            related.title, [source.title for source in result.sources]
+        )
+
+    def test_current_article_still_first(self):
+        """SPEC: R1 §3.2(6) / §4.2.6 —— 当前文章仍然排在 S1。"""
+        related = self.create_article(title='当前文章之外的检索结果')
+
+        result, _, _, _, _ = self._retrieve(
+            ['Git'],
+            articles=[related],
+            comments=[],
+            current=self.article,
+            article_id=self.article.pk,
+        )
+
+        self.assertEqual(result.sources[0].title, self.article.title)
+        self.assertIn(
+            related.title, [source.title for source in result.sources]
+        )
