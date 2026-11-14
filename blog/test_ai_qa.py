@@ -1754,3 +1754,137 @@ class AIAskGetPageTest(BaseTestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn('csrftoken', response.cookies)
+
+
+# =============================================================================
+# M5：前端页面（独立页内容 + 搜索页入口）
+#
+# 契约来源（只依据以下文档，不读实现文件）：
+# - doc/第9-10周任务/_tdd/M5.md §3、§5
+# - doc/第9-10周任务/AI功能规格说明.md §4.2、§4.13
+# - doc/第9-10周任务/实施计划-丁昊-AI问答.md §10、§11.8、§12.1
+#
+# 说明：
+# - 只断言 Django 渲染出的页面结构/文案/默认控件状态。
+#   划词、抽屉、移动端全屏、429/503 提示属于 JS 行为，由 M5 §7 手工验收，
+#   这里不写 JS 单元测试。
+# - 页面测试只 GET，不 patch、不调用 AI；搜索页只断言入口文案与链接，
+#   不校验检索结果。
+# =============================================================================
+
+from html.parser import HTMLParser  # noqa: E402
+
+
+class _HtmlTagCollector(HTMLParser):
+    """收集页面所有起始标签及其属性，用于与属性书写顺序无关的断言。"""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.tags = []
+
+    def handle_starttag(self, tag, attrs):
+        self.tags.append((tag, dict(attrs)))
+
+    def handle_startendtag(self, tag, attrs):
+        self.tags.append((tag, dict(attrs)))
+
+
+def _page_tags(response):
+    """解析响应 HTML，返回 [(tag_name, {attr_name: value}), ...]。"""
+    collector = _HtmlTagCollector()
+    collector.feed(response.content.decode('utf-8'))
+    collector.close()
+    return collector.tags
+
+
+def _tag_attrs_by_id(response, element_id):
+    """返回 id 等于 element_id 的第一个标签的属性字典；找不到返回 None。"""
+    for _tag, attrs in _page_tags(response):
+        if attrs.get('id') == element_id:
+            return attrs
+    return None
+
+
+def _has_attribute(response, attr_name):
+    """页面上是否存在带指定属性的标签（例如 data-ai-example）。"""
+    return any(attr_name in attrs for _tag, attrs in _page_tags(response))
+
+
+@override_settings(AI_ENABLED=True, AI_API_KEY='sk-test')
+class AIAskPageContentTest(BaseTestCase):
+    """SPEC: _tdd/M5.md §3.1、§5.1；AI功能规格说明 §4.2、§4.13。"""
+
+    def test_page_contains_mount_and_controls(self):
+        """SPEC: M5 §3.1 / §5.1.1 —— 启用时独立页含挂载点、表单与默认控件状态。"""
+        response = self.client.get(reverse('blog:ai_ask'))
+
+        self.assertEqual(response.status_code, 200)
+        # 标题与根容器启用标记（M5 §3.1 根容器属性）
+        self.assertContains(response, 'AI 站内问答')
+        self.assertContains(response, 'id="ai-ask-page"')
+        self.assertContains(response, 'data-ai-enabled="true"')
+        root_attrs = _tag_attrs_by_id(response, 'ai-ask-page')
+        self.assertIsNotNone(root_attrs, '未找到 id="ai-ask-page" 根容器')
+        self.assertEqual(root_attrs.get('data-ai-enabled'), 'true')
+
+        # 消息区、表单、输入框、发送按钮、评论开关（M5 §3.1）
+        for element_id in (
+            'ai-qa-messages',
+            'ai-qa-form',
+            'ai-qa-input',
+            'ai-qa-send',
+            'ai-qa-include-comments',
+        ):
+            self.assertContains(response, 'id="%s"' % element_id)
+
+        # 示例问题：至少一个 data-ai-example 按钮，且含指定文案
+        self.assertTrue(_has_attribute(response, 'data-ai-example'))
+        self.assertContains(response, '站内有哪些关于 Git 分支的文章？')
+
+        # 发送按钮初始带 disabled（M5 §3.1、§4.6）
+        send_attrs = _tag_attrs_by_id(response, 'ai-qa-send')
+        self.assertIsNotNone(send_attrs, '未找到 id="ai-qa-send" 发送按钮')
+        self.assertIn('disabled', send_attrs)
+
+        # 评论开关初始带 checked（M5 §3.1、§4.6）
+        include_attrs = _tag_attrs_by_id(response, 'ai-qa-include-comments')
+        self.assertIsNotNone(
+            include_attrs, '未找到 id="ai-qa-include-comments" 评论开关'
+        )
+        self.assertIn('checked', include_attrs)
+
+    @override_settings(AI_ENABLED=False)
+    def test_page_when_disabled_shows_notice_and_no_form(self):
+        """SPEC: M5 §3.1 / §5.1.2 —— 关闭时仍 200，显示不可用文案，不渲染表单/输入框。"""
+        response = self.client.get(reverse('blog:ai_ask'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'AI 问答暂不可用')
+        self.assertNotContains(response, 'id="ai-qa-form"')
+        self.assertNotContains(response, 'id="ai-qa-input"')
+
+    def test_page_does_not_show_selected_text_chip(self):
+        """SPEC: M5 §3.1 / §5.1.3 —— 独立页不出现文章页专用的选中文本芯片。"""
+        response = self.client.get(reverse('blog:ai_ask'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'id="ai-qa-selected-chip"')
+
+
+class SearchPageEntryTest(BaseTestCase):
+    """SPEC: _tdd/M5.md §3.2、§5.2；AI功能规格说明 §4.2。"""
+
+    def test_search_page_contains_ai_entry(self):
+        """SPEC: M5 §3.2 / §5.2.1 —— 带 q 时 200，含入口文案与指向 /ai/ask/ 的链接。"""
+        response = self.client.get(reverse('search'), {'q': 'test'})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '用自然语言问站内内容')
+        self.assertContains(response, reverse('blog:ai_ask'))
+
+    def test_search_page_entry_visible_without_query(self):
+        """SPEC: M5 §3.2 / §5.2.2 —— 无 q 参数时搜索页仍显示入口。"""
+        response = self.client.get(reverse('search'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '用自然语言问站内内容')
