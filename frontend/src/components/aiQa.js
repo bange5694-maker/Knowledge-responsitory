@@ -11,6 +11,7 @@ const ARTICLE_PATH_RE = /\/article\/\d{4}\/\d{1,2}\/\d{1,2}\/(\d+)\.html/;
 const MIN_SELECTED_TEXT = 5;
 const MAX_SELECTED_TEXT = 500;
 const MAX_HISTORY = 3;
+const DEFAULT_QUESTION = '解释这段内容';
 
 const state = {
   articleId: null,
@@ -87,14 +88,6 @@ function ensureStyles() {
   z-index: 30;
   pointer-events: none;
 }
-#ai-qa-drawer .ai-qa-backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.35);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.25s ease;
-}
 #ai-qa-drawer .ai-qa-panel {
   position: absolute;
   top: 0;
@@ -102,15 +95,9 @@ function ensureStyles() {
   width: 400px;
   max-width: 100%;
   height: 100%;
+  pointer-events: auto;
   transform: translateX(100%);
   transition: transform 0.25s ease;
-}
-#ai-qa-drawer.ai-qa-open {
-  pointer-events: auto;
-}
-#ai-qa-drawer.ai-qa-open .ai-qa-backdrop {
-  opacity: 1;
-  pointer-events: auto;
 }
 #ai-qa-drawer.ai-qa-open .ai-qa-panel {
   transform: translateX(0);
@@ -375,7 +362,7 @@ async function sendQuestion(question) {
   const input = document.getElementById('ai-qa-input');
   if (input) input.value = '';
   updateSendState();
-  setStatus('正在检索站内资料…', null, false);
+  setStatus('正在理解问题并检索站内资料…', null, false);
 
   try {
     const response = await fetch('/ai/ask/', {
@@ -459,21 +446,16 @@ function clearConversation() {
   updateSendState();
 }
 
-function openDrawer(options = {}) {
+function openDrawer() {
   const drawer = document.getElementById('ai-qa-drawer');
   if (!drawer) return;
 
-  const selectedText =
-    typeof options.selectedText === 'string'
-      ? options.selectedText.slice(0, MAX_SELECTED_TEXT)
-      : '';
-  state.selectedText = selectedText;
   updateChip();
 
   const input = document.getElementById('ai-qa-input');
   if (input) {
-    if (options.prefill && input.value.trim() === '') {
-      input.value = options.prefill;
+    if (state.selectedText && input.value.trim() === '') {
+      input.value = DEFAULT_QUESTION;
     }
     updateSendState();
   }
@@ -572,6 +554,25 @@ function handleSelectionEvent(event) {
   }
 
   const text = rawText.slice(0, MAX_SELECTED_TEXT);
+
+  const drawer = document.getElementById('ai-qa-drawer');
+  const drawerOpen = Boolean(
+    drawer && drawer.classList.contains('ai-qa-open'),
+  );
+
+  if (drawerOpen) {
+    state.selectedText = text;
+    updateChip();
+    hideSelectionButton(true);
+
+    const input = document.getElementById('ai-qa-input');
+    if (input && input.value.trim() === '') {
+      input.value = DEFAULT_QUESTION;
+      updateSendState();
+    }
+    return;
+  }
+
   const range = selection.getRangeAt(0);
   let rect = range.getBoundingClientRect();
 
@@ -583,6 +584,7 @@ function handleSelectionEvent(event) {
   }
   if (!rect) return;
 
+  state.selectedText = text;
   showSelectionButton(text, rect);
 }
 
@@ -631,7 +633,6 @@ function bindArticleUi(root) {
   const entry = root.querySelector('[data-ai-qa-entry]');
   const selectionButton = root.querySelector('[data-ai-qa-selection]');
   const closeButton = root.querySelector('#ai-qa-close');
-  const backdrop = root.querySelector('[data-ai-qa-backdrop]');
   const chipRemove = root.querySelector('[data-ai-qa-chip-remove]');
   const form = root.querySelector('#ai-qa-form');
   const input = root.querySelector('#ai-qa-input');
@@ -640,10 +641,6 @@ function bindArticleUi(root) {
   if (entry) {
     entry.addEventListener('click', () => {
       hideSelectionButton(true);
-      state.selectedText = '';
-      updateChip();
-      const inputElement = document.getElementById('ai-qa-input');
-      if (inputElement) inputElement.value = '';
       openDrawer();
     });
   }
@@ -654,22 +651,28 @@ function bindArticleUi(root) {
       event.preventDefault();
     });
     selectionButton.addEventListener('click', () => {
-      const selectedText = state.pendingSelectionText;
       hideSelectionButton(true);
-      if (!selectedText) return;
-      openDrawer({ selectedText, prefill: '解释这段内容' });
+      if (!state.selectedText) return;
+      openDrawer();
     });
   }
 
   if (closeButton) closeButton.addEventListener('click', closeDrawer);
-  if (backdrop) backdrop.addEventListener('click', closeDrawer);
 
   if (chipRemove) {
     chipRemove.addEventListener('click', () => {
       state.selectedText = '';
+      state.pendingSelectionText = '';
       updateChip();
+
       const inputElement = document.getElementById('ai-qa-input');
-      if (inputElement) inputElement.focus();
+      if (inputElement) {
+        if (inputElement.value.trim() === DEFAULT_QUESTION) {
+          inputElement.value = '';
+        }
+        inputElement.focus();
+      }
+      updateSendState();
     });
   }
 
@@ -693,7 +696,6 @@ function injectArticleUi() {
     <button type="button" data-ai-qa-selection hidden
             class="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-lg">问 AI</button>
     <div id="ai-qa-drawer" aria-hidden="true">
-      <div class="ai-qa-backdrop" data-ai-qa-backdrop></div>
       <section class="ai-qa-panel flex h-full flex-col border-l border-border bg-card text-foreground shadow-2xl"
                role="dialog" aria-modal="true" aria-labelledby="ai-qa-title">
         <header class="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
@@ -702,17 +704,17 @@ function injectArticleUi() {
                   class="rounded-md px-2 py-1 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                   aria-label="关闭">关闭</button>
         </header>
-        <div id="ai-qa-selected-chip" hidden
-             class="mx-4 mt-3 flex shrink-0 items-start gap-2 rounded-lg border border-border bg-secondary px-3 py-2 text-xs text-muted-foreground">
-          <span class="ai-qa-chip-text flex-1 break-words"></span>
-          <button type="button" data-ai-qa-chip-remove
-                  class="shrink-0 font-medium text-primary hover:underline">删除</button>
-        </div>
         <div id="ai-qa-messages" class="ai-qa-messages flex-1 overflow-y-auto px-4 py-4"
              aria-live="polite"></div>
         <div id="ai-qa-status" class="min-h-[1.5rem] shrink-0 px-4 pb-1 text-xs text-muted-foreground"
              role="status" aria-live="polite"></div>
         <form id="ai-qa-form" class="shrink-0 border-t border-border px-4 py-3" novalidate>
+          <div id="ai-qa-selected-chip" hidden
+               class="mb-2 flex items-start gap-2 rounded-lg border border-border bg-secondary px-3 py-2 text-xs text-muted-foreground">
+            <span class="ai-qa-chip-text flex-1 break-words"></span>
+            <button type="button" data-ai-qa-chip-remove
+                    class="shrink-0 font-medium text-primary hover:underline">删除</button>
+          </div>
           <label for="ai-qa-input" class="sr-only">输入你的问题</label>
           <textarea id="ai-qa-input" rows="2" maxlength="200" placeholder="输入你的问题…"
                     class="w-full resize-none rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"></textarea>
