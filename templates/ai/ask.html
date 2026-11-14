@@ -1,0 +1,13 @@
+{% extends 'share_layout/base.html' %}
+
+{# DH: M4 最小占位页，M5 再替换为完整问答界面 #}
+{% block content %}
+<div class="container">
+    <h1>AI 站内问答</h1>
+    {% if ai_enabled %}
+        <p>问答功能已启用。</p>
+    {% else %}
+        <p>AI 问答暂不可用。</p>
+    {% endif %}
+</div>
+{% endblock %}

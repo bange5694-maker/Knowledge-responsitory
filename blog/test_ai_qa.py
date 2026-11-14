@@ -1152,3 +1152,605 @@ class AnswerQuestionTest(SimpleTestCase):
                 self.answer_question('测试问题')
 
         self.assertEqual(str(ctx.exception), '上游失败')
+
+
+# =============================================================================
+# M4：/ai/ask/ + /ai/status/ + 缓存/限流/CSRF
+#
+# 契约来源：
+# - doc/第9-10周任务/_tdd/M4.md §3、§4、§5
+# - doc/第9-10周任务/AI功能规格说明.md §4.8、§4.11、§4.12
+# - doc/第9-10周任务/实施计划-丁昊-AI问答.md §8、§9、§11.7、§12.1
+#
+# 说明：
+# - M4 的视图/路由/模板在编写测试时尚未实现，因此
+#   reverse('blog:ai_ask') 与 patch('blog.ai_views.answer_question')
+#   都会在测试运行时失败（预期红）；无需像 M3 那样延迟 import。
+# - 所有 API 测试只 patch blog.ai_views.answer_question，
+#   不真实调用 AI，也不触发 Whoosh 查询。
+# =============================================================================
+
+import json  # noqa: E402
+from hashlib import sha256  # noqa: E402
+
+from django.conf import settings  # noqa: E402
+from django.core.cache import cache  # noqa: E402
+from django.test import Client  # noqa: E402
+from django.urls import reverse  # noqa: E402
+
+
+AI_ASK_TITLE = 'AI 站内问答'
+AI_DISABLED_TEXT = '暂不可用'
+
+ERROR_BODY_400 = {'error': '请求参数不正确'}
+ERROR_BODY_429 = {'error': '提问太频繁，请稍后再试'}
+ERROR_BODY_503 = {'error': 'AI 服务暂时不可用，请稍后再试'}
+
+
+def _ai_ask_payload(article_id=None, **overrides):
+    """构造 M4 §3.4 的合法 POST /ai/ask/ 请求体。"""
+    payload = {
+        'question': '测试问题',
+        'selected_text': '',
+        'article_id': article_id,
+        'include_comments': True,
+        'history': [],
+    }
+    payload.update(overrides)
+    return payload
+
+
+def _post_ai_ask(client, payload, **extra):
+    """向 reverse('blog:ai_ask') 发送 JSON POST（默认不启用 CSRF 检查）。"""
+    return client.post(
+        reverse('blog:ai_ask'),
+        data=json.dumps(payload),
+        content_type='application/json',
+        **extra,
+    )
+
+
+def _json_body(response):
+    """解析响应 JSON。"""
+    return json.loads(response.content.decode('utf-8'))
+
+
+def _assert_json_error(test_case, response, status_code, error_body):
+    """断言状态码与 {"error": ...} 错误体（M4 §3.4 错误表）。"""
+    test_case.assertEqual(response.status_code, status_code)
+    test_case.assertEqual(_json_body(response), error_body)
+
+
+def _ai_cache_key(question, selected_text, article_id, include_comments):
+    """按 M4 §3.5 / 实施计划 §9.1 的公式计算首轮缓存 key。"""
+    raw = f"{question}|{selected_text}|{article_id or ''}|{int(include_comments)}"
+    digest = sha256(raw.encode('utf-8')).hexdigest()
+    return f'ai_qa:{digest}:{settings.AI_INDEX_VERSION}'
+
+
+def _mock_answer_result(answer='测试答案', citations=None):
+    """answer_question 的成功返回值（与 M3 返回结构一致）。"""
+    return {'answer': answer, 'citations': citations or []}
+
+
+@override_settings(AI_ENABLED=True, AI_API_KEY='sk-test', AI_MODEL='deepseek-chat')
+class AIStatusViewTest(BaseTestCase):
+    """SPEC: _tdd/M4.md §3.2、§4.1；实施计划 §8.1、§11.7。"""
+
+    def _get_status(self, article_id=None):
+        params = {} if article_id is None else {'article_id': article_id}
+        response = self.client.get(reverse('blog:ai_status'), params)
+        self.assertEqual(response.status_code, 200)
+        return _json_body(response)
+
+    def test_disabled_returns_enabled_false(self):
+        """SPEC: M4 §3.2 / §4.1.1 —— AI_ENABLED=False 时 enabled=false、type=null。"""
+        with override_settings(AI_ENABLED=False):
+            body = self._get_status(self.article.pk)
+
+        self.assertEqual(body, {'enabled': False, 'article_type': None})
+
+    def test_missing_key_returns_enabled_false(self):
+        """SPEC: M4 §3.2 / §4.1.2 —— AI 开启但 Key 为空时 fail closed。"""
+        with override_settings(AI_API_KEY=''):
+            body = self._get_status(self.article.pk)
+
+        self.assertEqual(body, {'enabled': False, 'article_type': None})
+
+    def test_enabled_article_returns_type_a(self):
+        """SPEC: M4 §3.2 / §4.1.3 —— 已发布普通文章返回 type='a'，且不泄露配置。"""
+        body = self._get_status(self.article.pk)
+
+        self.assertEqual(body, {'enabled': True, 'article_type': 'a'})
+        self.assertEqual(set(body), {'enabled', 'article_type'})
+
+    def test_page_article_returns_type_p(self):
+        """SPEC: M4 §3.2 / §4.1.4 —— 已发布独立页面返回 type='p'。"""
+        page = self.create_article(title='独立页面', article_type='p')
+
+        body = self._get_status(page.pk)
+
+        self.assertEqual(body, {'enabled': True, 'article_type': 'p'})
+
+    def test_draft_returns_null(self):
+        """SPEC: M4 §3.2 / §4.1.5 —— 草稿（status='d'）返回 type=null。"""
+        draft = self.create_article(title='草稿文章', status='d')
+
+        body = self._get_status(draft.pk)
+
+        self.assertEqual(body, {'enabled': True, 'article_type': None})
+
+    def test_missing_article_id_returns_null(self):
+        """SPEC: M4 §3.2 / §4.1.6 —— 缺少 article_id 时 type=null。"""
+        body = self._get_status()
+
+        self.assertEqual(body, {'enabled': True, 'article_type': None})
+
+    def test_invalid_article_id_returns_null(self):
+        """SPEC: M4 §3.2 / §4.1.7 —— 非数字/不存在 id 返回 type=null。"""
+        for article_id in ('abc', 'not-a-number', 99999999):
+            with self.subTest(article_id=article_id):
+                body = self._get_status(article_id)
+
+                self.assertEqual(body, {'enabled': True, 'article_type': None})
+
+
+@override_settings(AI_ENABLED=True, AI_API_KEY='sk-test', AI_MODEL='deepseek-chat')
+class AIAskValidationTest(BaseTestCase):
+    """SPEC: _tdd/M4.md §3.4、§4.2；实施计划 §8.3、§11.7。"""
+
+    def setUp(self):
+        super().setUp()
+        cache.clear()
+
+    def _post(self, payload):
+        """POST 并 patch answer_question，返回 (response, mock)。"""
+        with patch(
+            'blog.ai_views.answer_question',
+            return_value=_mock_answer_result(),
+        ) as mock_answer:
+            response = _post_ai_ask(self.client, payload)
+        return response, mock_answer
+
+    def _assert_400(self, payload):
+        response, mock_answer = self._post(payload)
+
+        _assert_json_error(self, response, 400, ERROR_BODY_400)
+        mock_answer.assert_not_called()
+        return response
+
+    def test_missing_question_returns_400(self):
+        """SPEC: M4 §3.4 校验表 / §4.2.1 —— question 缺失 → 400。"""
+        payload = _ai_ask_payload(self.article.pk)
+        del payload['question']
+
+        self._assert_400(payload)
+
+    def test_blank_question_returns_400(self):
+        """SPEC: M4 §3.4 校验表 / §4.2.2 —— question strip 后为空 → 400。"""
+        for question in ('', '   ', '\n\t '):
+            with self.subTest(question=question):
+                self._assert_400(
+                    _ai_ask_payload(self.article.pk, question=question)
+                )
+
+    def test_question_over_200_returns_400(self):
+        """SPEC: M4 §3.4 校验表 / §4.2.3 —— 200 字允许，201 字 → 400。"""
+        response, mock_answer = self._post(
+            _ai_ask_payload(self.article.pk, question='问' * 200)
+        )
+        self.assertEqual(response.status_code, 200)
+        mock_answer.assert_called_once()
+
+        self._assert_400(
+            _ai_ask_payload(self.article.pk, question='问' * 201)
+        )
+
+    def test_selected_text_over_500_returns_400(self):
+        """SPEC: M4 §3.4 校验表 / §4.2.4 —— selected_text 500 字允许，501 字 → 400。"""
+        response, mock_answer = self._post(
+            _ai_ask_payload(self.article.pk, selected_text='选' * 500)
+        )
+        self.assertEqual(response.status_code, 200)
+        mock_answer.assert_called_once()
+
+        self._assert_400(
+            _ai_ask_payload(self.article.pk, selected_text='选' * 501)
+        )
+
+    def test_invalid_article_id_returns_400(self):
+        """SPEC: M4 §3.4 校验表 / §4.2.5 —— 非 int、字符串、bool、草稿、独立页均 400。"""
+        draft = self.create_article(title='草稿文章', status='d')
+        page = self.create_article(title='独立页面', article_type='p')
+
+        invalid_ids = ['abc', str(self.article.pk), True, draft.pk, page.pk]
+        for article_id in invalid_ids:
+            with self.subTest(article_id=article_id):
+                self._assert_400(_ai_ask_payload(article_id))
+
+    def test_include_comments_string_returns_400(self):
+        """SPEC: M4 §3.4 校验表 / §4.2.6 —— include_comments 非 bool → 400。"""
+        for include_comments in ('true', 'false', 1, 0):
+            with self.subTest(include_comments=include_comments):
+                self._assert_400(
+                    _ai_ask_payload(
+                        self.article.pk, include_comments=include_comments
+                    )
+                )
+
+    def test_history_over_three_rounds_returns_400(self):
+        """SPEC: M4 §3.4 校验表 / §4.2.7 —— 3 轮允许，4 轮 → 400。"""
+        three_rounds = [
+            {'question': f'问题{i}', 'answer': f'回答{i}'}
+            for i in range(1, 4)
+        ]
+        response, mock_answer = self._post(
+            _ai_ask_payload(self.article.pk, history=three_rounds)
+        )
+        self.assertEqual(response.status_code, 200)
+        mock_answer.assert_called_once()
+
+        four_rounds = three_rounds + [{'question': '问题4', 'answer': '回答4'}]
+        self._assert_400(
+            _ai_ask_payload(self.article.pk, history=four_rounds)
+        )
+
+    def test_invalid_history_shape_returns_400(self):
+        """SPEC: M4 §3.4 校验表 —— history 必须是 list，每项 dict 且 q/a 为字符串。"""
+        invalid_histories = [
+            'not-a-list',
+            {'question': '问题', 'answer': '回答'},
+            [{'question': '问题'}],
+            [{'answer': '回答'}],
+            [{'question': '问题', 'answer': 123}],
+            [{'question': 123, 'answer': '回答'}],
+        ]
+        for history in invalid_histories:
+            with self.subTest(history=history):
+                self._assert_400(
+                    _ai_ask_payload(self.article.pk, history=history)
+                )
+
+    def test_invalid_json_returns_400(self):
+        """SPEC: M4 §3.4 校验表 / §4.2.8 —— 非法 JSON 或非对象 JSON → 400。"""
+        invalid_bodies = [
+            '{invalid json',
+            '',
+            json.dumps([1, 2, 3]),
+            json.dumps('字符串'),
+            json.dumps(123),
+        ]
+        for raw_body in invalid_bodies:
+            with self.subTest(raw_body=raw_body):
+                with patch('blog.ai_views.answer_question') as mock_answer:
+                    response = self.client.post(
+                        reverse('blog:ai_ask'),
+                        data=raw_body,
+                        content_type='application/json',
+                    )
+
+                _assert_json_error(self, response, 400, ERROR_BODY_400)
+                mock_answer.assert_not_called()
+
+
+@override_settings(AI_ENABLED=True, AI_API_KEY='sk-test', AI_MODEL='deepseek-chat')
+class AIAskCacheTest(BaseTestCase):
+    """SPEC: _tdd/M4.md §3.5、§4.3；AI功能规格说明 §4.12；实施计划 §9.1、§11.7。"""
+
+    def setUp(self):
+        super().setUp()
+        cache.clear()
+
+    def test_first_request_not_cached_second_cached(self):
+        """SPEC: M4 §3.5 / §4.3.1 —— 首轮第一次 cached=false，第二次 true。"""
+        payload = _ai_ask_payload(self.article.pk)
+
+        with patch(
+            'blog.ai_views.answer_question',
+            return_value=_mock_answer_result(),
+        ) as mock_answer:
+            first = _post_ai_ask(self.client, payload)
+            second = _post_ai_ask(self.client, payload)
+
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 200)
+        self.assertIs(_json_body(first)['meta']['cached'], False)
+        self.assertIs(_json_body(second)['meta']['cached'], True)
+        mock_answer.assert_called_once()
+
+        # 按 §3.5 公式写入的缓存 key 必须存在。
+        expected_key = _ai_cache_key('测试问题', '', self.article.pk, True)
+        self.assertIsNotNone(
+            cache.get(expected_key),
+            msg=f'首轮回答应写入缓存 key {expected_key!r}',
+        )
+
+    def test_history_requests_are_not_cached(self):
+        """SPEC: M4 §3.5 / §4.3.2 —— 带 history 的请求不读不写缓存。"""
+        payload = _ai_ask_payload(
+            self.article.pk,
+            history=[{'question': '上一轮问题', 'answer': '上一轮回答'}],
+        )
+
+        with patch(
+            'blog.ai_views.answer_question',
+            return_value=_mock_answer_result(),
+        ) as mock_answer:
+            first = _post_ai_ask(self.client, payload)
+            second = _post_ai_ask(self.client, payload)
+
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 200)
+        self.assertIs(_json_body(first)['meta']['cached'], False)
+        self.assertIs(_json_body(second)['meta']['cached'], False)
+        self.assertEqual(mock_answer.call_count, 2)
+
+        # 首轮公式对应的 key 不应被多轮请求写入。
+        first_round_key = _ai_cache_key('测试问题', '', self.article.pk, True)
+        self.assertIsNone(cache.get(first_round_key))
+
+    def test_different_questions_use_different_cache(self):
+        """SPEC: M4 §3.5 / §4.3.3 —— 不同 question 使用不同缓存 key。"""
+        payload_a = _ai_ask_payload(self.article.pk, question='问题A')
+        payload_b = _ai_ask_payload(self.article.pk, question='问题B')
+
+        with patch(
+            'blog.ai_views.answer_question',
+            return_value=_mock_answer_result(),
+        ) as mock_answer:
+            response_a = _post_ai_ask(self.client, payload_a)
+            response_b = _post_ai_ask(self.client, payload_b)
+
+        self.assertEqual(response_a.status_code, 200)
+        self.assertEqual(response_b.status_code, 200)
+        self.assertIs(_json_body(response_a)['meta']['cached'], False)
+        self.assertIs(_json_body(response_b)['meta']['cached'], False)
+        self.assertEqual(mock_answer.call_count, 2)
+
+        key_a = _ai_cache_key('问题A', '', self.article.pk, True)
+        key_b = _ai_cache_key('问题B', '', self.article.pk, True)
+        self.assertNotEqual(key_a, key_b)
+        self.assertIsNotNone(cache.get(key_a))
+        self.assertIsNotNone(cache.get(key_b))
+
+    def test_include_comments_defaults_to_true_in_cache_key(self):
+        """SPEC: M4 §3.4、§3.5 —— include_comments 缺省 true，key 中使用 1。"""
+        payload = _ai_ask_payload(self.article.pk)
+        payload.pop('include_comments')
+
+        with patch(
+            'blog.ai_views.answer_question',
+            return_value=_mock_answer_result(),
+        ) as mock_answer:
+            response = _post_ai_ask(self.client, payload)
+
+        self.assertEqual(response.status_code, 200)
+        mock_answer.assert_called_once()
+        self.assertIsNone(
+            cache.get(_ai_cache_key('测试问题', '', self.article.pk, False))
+        )
+        self.assertIsNotNone(
+            cache.get(_ai_cache_key('测试问题', '', self.article.pk, True))
+        )
+
+
+@override_settings(AI_ENABLED=True, AI_API_KEY='sk-test', AI_MODEL='deepseek-chat')
+class AIAskRateLimitTest(BaseTestCase):
+    """SPEC: _tdd/M4.md §3.6、§4.4；AI功能规格说明 §4.11；实施计划 §9.2、§11.7。"""
+
+    def setUp(self):
+        super().setUp()
+        cache.clear()
+
+    def _post_valid(self, **extra):
+        return _post_ai_ask(
+            self.client, _ai_ask_payload(self.article.pk), **extra
+        )
+
+    def _post_first_ten_then_eleventh(self):
+        """连续 10 次合法 POST（断言 200），返回第 11 次响应。"""
+        for index in range(1, 11):
+            response = self._post_valid()
+            self.assertEqual(
+                response.status_code,
+                200,
+                msg=f'第 {index} 次请求应为 200，实际 {response.status_code}',
+            )
+        return self._post_valid()
+
+    def test_eleventh_request_returns_429(self):
+        """SPEC: M4 §3.6 / §4.4.1 —— 第 11 次请求返回 429（先限流，再缓存）。"""
+        with patch(
+            'blog.ai_views.answer_question',
+            return_value=_mock_answer_result(),
+        ):
+            eleventh = self._post_first_ten_then_eleventh()
+
+        # 前 10 次请求已写入回答缓存；第 11 次仍必须先触发限流。
+        self.assertEqual(eleventh.status_code, 429)
+
+    def test_rate_limit_error_message(self):
+        """SPEC: M4 §3.6 / §4.4.2 —— 429 body.error 为固定提示。"""
+        with patch(
+            'blog.ai_views.answer_question',
+            return_value=_mock_answer_result(),
+        ):
+            eleventh = self._post_first_ten_then_eleventh()
+
+        _assert_json_error(self, eleventh, 429, ERROR_BODY_429)
+
+    def test_rate_limit_is_per_ip(self):
+        """SPEC: M4 §3.6 —— 限流按 REMOTE_ADDR 分桶，其他 IP 不受影响。"""
+        with patch(
+            'blog.ai_views.answer_question',
+            return_value=_mock_answer_result(),
+        ):
+            for index in range(1, 11):
+                response = self._post_valid(REMOTE_ADDR='10.0.0.1')
+                self.assertEqual(
+                    response.status_code,
+                    200,
+                    msg=f'IP A 第 {index} 次请求应为 200',
+                )
+            other_ip = self._post_valid(REMOTE_ADDR='10.0.0.2')
+
+        self.assertEqual(other_ip.status_code, 200)
+
+
+@override_settings(AI_ENABLED=True, AI_API_KEY='sk-test', AI_MODEL='deepseek-chat')
+class AIAskErrorsTest(BaseTestCase):
+    """SPEC: _tdd/M4.md §3.4、§4.5；实施计划 §8.3、§11.7。"""
+
+    def setUp(self):
+        super().setUp()
+        cache.clear()
+
+    def test_ai_disabled_returns_503(self):
+        """SPEC: M4 §3.4 / §4.5.1 —— AI_ENABLED=False → 503，且不调用 AI。"""
+        with override_settings(AI_ENABLED=False):
+            with patch('blog.ai_views.answer_question') as mock_answer:
+                response = _post_ai_ask(
+                    self.client, _ai_ask_payload(self.article.pk)
+                )
+
+        _assert_json_error(self, response, 503, ERROR_BODY_503)
+        mock_answer.assert_not_called()
+
+    def test_missing_key_returns_503(self):
+        """SPEC: M4 §3.4 / §4.5.2 —— AI 开启但 Key 缺失 → 503。"""
+        with override_settings(AI_ENABLED=True, AI_API_KEY=''):
+            with patch('blog.ai_views.answer_question') as mock_answer:
+                response = _post_ai_ask(
+                    self.client, _ai_ask_payload(self.article.pk)
+                )
+
+        _assert_json_error(self, response, 503, ERROR_BODY_503)
+        mock_answer.assert_not_called()
+
+    def test_ai_client_error_returns_503(self):
+        """SPEC: M4 §3.4 / §4.5.3 —— AIClientError → 503，且不泄露内部错误。"""
+        with patch(
+            'blog.ai_views.answer_question',
+            side_effect=AIClientError('上游失败'),
+        ) as mock_answer:
+            response = _post_ai_ask(
+                self.client, _ai_ask_payload(self.article.pk)
+            )
+
+        _assert_json_error(self, response, 503, ERROR_BODY_503)
+        mock_answer.assert_called_once()
+        self.assertNotIn('上游失败', response.content.decode('utf-8'))
+
+    def test_success_response_shape(self):
+        """SPEC: M4 §3.4 / §4.5.4 —— 200 响应含 answer/citations/meta 字段。"""
+        citations = [
+            {
+                'type': 'article',
+                'title': '文章一',
+                'url': '/article/1/',
+                'snippet': '片段一',
+            },
+            {
+                'type': 'comment',
+                'title': '文章一',
+                'url': '/article/1/#comment-12',
+                'snippet': '片段二',
+                'author': '读者A',
+            },
+        ]
+
+        with patch(
+            'blog.ai_views.answer_question',
+            return_value={'answer': '这是测试答案[1]', 'citations': citations},
+        ) as mock_answer:
+            response = _post_ai_ask(
+                self.client, _ai_ask_payload(self.article.pk)
+            )
+
+        self.assertEqual(response.status_code, 200)
+        body = _json_body(response)
+        self.assertEqual(set(body), {'answer', 'citations', 'meta'})
+        self.assertEqual(body['answer'], '这是测试答案[1]')
+        self.assertEqual(body['citations'], citations)
+        self.assertEqual(set(body['meta']), {'model', 'cached'})
+        self.assertEqual(body['meta']['model'], 'deepseek-chat')
+        self.assertIs(body['meta']['cached'], False)
+        mock_answer.assert_called_once()
+
+
+@override_settings(AI_ENABLED=True, AI_API_KEY='sk-test', AI_MODEL='deepseek-chat')
+class AIAskCSRFTest(BaseTestCase):
+    """SPEC: _tdd/M4.md §3.7、§4.6；实施计划 §9.3、§11.7。"""
+
+    def setUp(self):
+        super().setUp()
+        cache.clear()
+
+    def test_post_without_csrf_returns_403(self):
+        """SPEC: M4 §3.7 / §4.6.1 —— POST 不带 X-CSRFToken → 403。"""
+        client = Client(enforce_csrf_checks=True)
+
+        with patch('blog.ai_views.answer_question') as mock_answer:
+            response = _post_ai_ask(
+                client, _ai_ask_payload(self.article.pk)
+            )
+
+        self.assertEqual(response.status_code, 403)
+        mock_answer.assert_not_called()
+
+    def test_post_with_csrf_token_returns_200(self):
+        """SPEC: M4 §3.7 / §4.6.2 —— GET 页面取 token 后带 X-CSRFToken → 200。"""
+        client = Client(enforce_csrf_checks=True)
+
+        page = client.get(reverse('blog:ai_ask'))
+        self.assertEqual(page.status_code, 200)
+        self.assertIn('csrftoken', client.cookies)
+        token = client.cookies['csrftoken'].value
+        self.assertTrue(token)
+
+        with patch(
+            'blog.ai_views.answer_question',
+            return_value=_mock_answer_result(),
+        ) as mock_answer:
+            response = _post_ai_ask(
+                client,
+                _ai_ask_payload(self.article.pk),
+                HTTP_X_CSRFTOKEN=token,
+            )
+
+        self.assertEqual(response.status_code, 200)
+        mock_answer.assert_called_once()
+
+
+@override_settings(AI_ENABLED=True, AI_API_KEY='sk-test', AI_MODEL='deepseek-chat')
+class AIAskGetPageTest(BaseTestCase):
+    """SPEC: _tdd/M4.md §3.3、§4.7；实施计划 §8.2、§9.3。"""
+
+    def test_get_ask_page_returns_200(self):
+        """SPEC: M4 §3.3 / §4.7.1 —— 占位页 200、含标题、上下文 ai_enabled=True。"""
+        response = self.client.get(reverse('blog:ai_ask'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, AI_ASK_TITLE)
+        self.assertTrue(response.context['ai_enabled'])
+        self.assertIn(
+            'ai/ask.html',
+            [template.name for template in response.templates],
+        )
+        self.assertIn('csrftoken', response.cookies)
+
+    def test_get_ask_page_when_disabled(self):
+        """SPEC: M4 §3.3 / §4.7.2 —— AI 关闭时页面仍 200，显示“暂不可用”。"""
+        with override_settings(AI_ENABLED=False):
+            response = self.client.get(reverse('blog:ai_ask'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, AI_DISABLED_TEXT)
+        self.assertFalse(response.context['ai_enabled'])
+
+    def test_article_detail_sets_csrf_cookie(self):
+        """SPEC: M4 §3.7 / §4.7.3 —— 文章详情响应设置 csrftoken cookie。"""
+        response = self.client.get(self.article.get_absolute_url())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('csrftoken', response.cookies)
