@@ -1,0 +1,5 @@
+# 本地预览产物，不提交
+_preview/
+*.pdf
+tools/week5-*.html
+__pycache__/
