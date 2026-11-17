@@ -8,6 +8,10 @@ from django.urls import reverse
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 
+# HJJ: AI 导读生成
+from .models import Article, Category, Tag, Links, SideBar, BlogSettings
+from .ai_summary import generate_ai_summary   
+
 # Register your models here.
 from .models import Article, Category, Tag, Links, SideBar, BlogSettings
 
@@ -46,9 +50,27 @@ draft_article.short_description = _('Draft selected articles')
 close_article_commentstatus.short_description = _('Close article comments')
 open_article_commentstatus.short_description = _('Open article comments')
 
+def generate_ai_summary_action(modeladmin, request, queryset):
+        #何君杰: 批量/单篇生成或重新生成 AI 导读。
+        ok = fail = skip = 0
+        for article in queryset:
+            # 只处理已发布文章；草稿/独立页面跳过
+            if article.status != 'p' or article.type != 'a':
+                skip += 1
+                continue
+            if generate_ai_summary(article, force=True):
+                ok += 1
+            else:
+                fail += 1
+        modeladmin.message_user(
+            request,
+            f'AI 导读生成完成：成功 {ok} 篇，失败 {fail} 篇，跳过 {skip} 篇',
+        )
+
+generate_ai_summary_action.short_description = _('生成/重新生成 AI 导读')
+
 
 class ArticlelAdmin(admin.ModelAdmin):
-    # HJJ: 文章管理配置，每页20条，支持标题和正文搜索
     list_per_page = 20
     search_fields = ('body', 'title')
     form = ArticleForm
@@ -61,9 +83,11 @@ class ArticlelAdmin(admin.ModelAdmin):
         'views',
         'status',
         'type',
-        'article_order')
+        'article_order',
+        'ai_status',          # 何君杰: 列表显示 AI 状态
+    )
     list_display_links = ('id', 'title')
-    list_filter = ('status', 'type', 'category')
+    list_filter = ('status', 'type', 'category', 'ai_status')  # 何君杰: 支持按 AI 状态筛选
     date_hierarchy = 'creation_time'
     filter_horizontal = ('tags',)
     exclude = ('creation_time', 'last_modify_time')
@@ -72,8 +96,21 @@ class ArticlelAdmin(admin.ModelAdmin):
         makr_article_publish,
         draft_article,
         close_article_commentstatus,
-        open_article_commentstatus]
+        open_article_commentstatus,
+        generate_ai_summary_action,   # 何君杰: 生成/重新生成 AI 导读
+    ]
     raw_id_fields = ('author', 'category',)
+
+    # 何君杰: AI 字段只读展示，不允许手工编辑，避免和生成结果不一致
+    readonly_fields = (
+        'ai_summary',
+        'ai_highlights',
+        'ai_audience',
+        'ai_keywords',
+        'ai_status',
+        'ai_generated_at',
+        'ai_model',
+    )
 
     def link_to_category(self, obj):
         # HJJ: 自定义列 - 将分类名渲染为可点击的后台编辑链接
