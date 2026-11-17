@@ -7,7 +7,7 @@ import logging
 from django.conf import settings
 from django.utils.timezone import now
 
-from djangoblog.ai import AIClient, AIClientError
+from djangoblog.ai import AIClient
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +36,17 @@ SUMMARY_PROMPT = """你是一个博客导读助手。请只根据下面这篇文
 
 文章正文：
 {body}
+"""
+
+
+# DH: 校验失败后追加的更严格提示词，用于第二次尝试。
+SUMMARY_RETRY_SUFFIX = """
+
+上一次输出不符合长度要求。请严格重写：
+- 摘要必须在 80–120 字之间，不能超过 120 字；
+- 三个看点每条不超过 40 字；
+- 关键词 3–5 个。
+只输出 JSON，不要解释。
 """
 
 
@@ -77,6 +88,46 @@ def _validate_payload(payload):
     return True
 
 
+# DH: 真实模型经常超出长度上限；先截到规格上限，再交给严格校验。
+def _normalize_payload(payload):
+    if not isinstance(payload, dict):
+        return payload
+
+    normalized = dict(payload)
+
+    summary = normalized.get('summary')
+    if isinstance(summary, str):
+        normalized['summary'] = summary.strip()[:120]
+
+    highlights = normalized.get('highlights')
+    if isinstance(highlights, list):
+        normalized['highlights'] = [
+            item.strip()[:40]
+            for item in highlights
+            if isinstance(item, str) and item.strip()
+        ][:3]
+
+    audience = normalized.get('audience')
+    if isinstance(audience, str):
+        normalized['audience'] = audience.strip()[:40]
+
+    keywords = normalized.get('keywords')
+    if isinstance(keywords, list):
+        seen = set()
+        cleaned = []
+        for item in keywords:
+            if not isinstance(item, str):
+                continue
+            text = item.strip()
+            if not text or text in seen:
+                continue
+            seen.add(text)
+            cleaned.append(text)
+        normalized['keywords'] = cleaned[:5]
+
+    return normalized
+
+
 def _parse_ai_json(text):
     """何君杰: 从模型输出里解析 JSON；容忍 ```json 代码块包裹。"""
     text = (text or '').strip()
@@ -101,44 +152,75 @@ def generate_ai_summary(article, force=False) -> bool:
     if article.ai_status == 'done' and not force:
         return True
 
+    system_message = {
+        'role': 'system',
+        'content': '你是博客导读助手，只输出 JSON。',
+    }
     prompt = SUMMARY_PROMPT.format(title=article.title, body=article.body)
-    messages = [
-        {'role': 'system', 'content': '你是博客导读助手，只输出 JSON。'},
-        {'role': 'user', 'content': prompt},
-    ]
+    retry_prompt = (SUMMARY_PROMPT + SUMMARY_RETRY_SUFFIX).format(
+        title=article.title, body=article.body
+    )
 
-    try:
-        text = AIClient.chat(messages, temperature=0.2, max_tokens=800)
-        payload = _parse_ai_json(text)
-    except (AIClientError, json.JSONDecodeError, Exception) as exc:
-        # 何君杰: AI 失败/JSON 解析失败都视为 failed，不向外抛
-        logger.warning('AI 导读生成失败 article=%s: %s', article.pk, type(exc).__name__)
-        article.ai_status = 'failed'
-        article.save(update_fields=['ai_status'])
-        return False
+    # DH: 最多两次：第一次正常提示词，字段不合格时用更严格提示词重试一次。
+    last_reason = ''
+    for attempt in range(2):
+        user_prompt = prompt if attempt == 0 else retry_prompt
+        messages = [system_message, {'role': 'user', 'content': user_prompt}]
 
-    # 何君杰: 字段不满足约束也视为失败，不把半截内容写库
-    if not _validate_payload(payload):
-        logger.warning('AI 导读字段校验失败 article=%s', article.pk)
-        article.ai_status = 'failed'
-        article.save(update_fields=['ai_status'])
-        return False
+        try:
+            text = AIClient.chat(messages, temperature=0.2, max_tokens=800)
+        except Exception as exc:
+            # 何君杰: AI 失败不重试，直接 failed，不向外抛
+            logger.warning(
+                'AI 导读生成失败 article=%s: %s',
+                article.pk,
+                type(exc).__name__,
+            )
+            article.ai_status = 'failed'
+            article.save(update_fields=['ai_status'])
+            return False
 
-    # 何君杰: 成功写入 4 个内容字段 + 状态/时间/模型
-    article.ai_summary = payload['summary'].strip()
-    article.ai_highlights = [item.strip() for item in payload['highlights']]
-    article.ai_audience = (payload.get('audience') or '').strip()
-    article.ai_keywords = [item.strip() for item in payload['keywords']]
-    article.ai_status = 'done'
-    article.ai_generated_at = now()
-    article.ai_model = getattr(settings, 'AI_MODEL', 'deepseek-chat')
-    article.save(update_fields=[
-        'ai_summary',
-        'ai_highlights',
-        'ai_audience',
-        'ai_keywords',
-        'ai_status',
-        'ai_generated_at',
-        'ai_model',
-    ])
-    return True
+        try:
+            payload = _parse_ai_json(text)
+        except Exception as exc:
+            # 何君杰: JSON 解析失败视为 failed，不把半截内容写库
+            logger.warning(
+                'AI 导读生成失败 article=%s: %s',
+                article.pk,
+                type(exc).__name__,
+            )
+            article.ai_status = 'failed'
+            article.save(update_fields=['ai_status'])
+            return False
+
+        # DH: 先归一化超长字段，再做严格校验。
+        payload = _normalize_payload(payload)
+        if _validate_payload(payload):
+            # 何君杰: 成功写入 4 个内容字段 + 状态/时间/模型
+            article.ai_summary = payload['summary'].strip()
+            article.ai_highlights = [item.strip() for item in payload['highlights']]
+            article.ai_audience = (payload.get('audience') or '').strip()
+            article.ai_keywords = [item.strip() for item in payload['keywords']]
+            article.ai_status = 'done'
+            article.ai_generated_at = now()
+            article.ai_model = getattr(settings, 'AI_MODEL', 'deepseek-chat')
+            article.save(update_fields=[
+                'ai_summary',
+                'ai_highlights',
+                'ai_audience',
+                'ai_keywords',
+                'ai_status',
+                'ai_generated_at',
+                'ai_model',
+            ])
+            return True
+
+        last_reason = '字段校验失败'
+        if attempt == 0:
+            logger.info('AI 导读字段校验失败，重试一次 article=%s', article.pk)
+
+    # DH: 两次都不合格才 failed，不把半截内容写库。
+    logger.warning('AI 导读字段校验失败 article=%s: %s', article.pk, last_reason)
+    article.ai_status = 'failed'
+    article.save(update_fields=['ai_status'])
+    return False

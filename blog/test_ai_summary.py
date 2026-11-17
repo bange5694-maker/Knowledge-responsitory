@@ -61,6 +61,7 @@ class AISummaryServiceTest(BaseTestCase):
         self.article.refresh_from_db()
         self.assertEqual(self.article.ai_status, 'failed')
         self.assertEqual(self.article.ai_summary, '')
+        mock_chat.assert_called_once()
 
     @patch('blog.ai_summary.AIClient.chat', return_value='这不是 JSON')
     def test_invalid_json_sets_failed(self, mock_chat):
@@ -71,6 +72,7 @@ class AISummaryServiceTest(BaseTestCase):
         self.article.refresh_from_db()
         self.assertEqual(self.article.ai_status, 'failed')
         self.assertEqual(self.article.ai_summary, '')
+        mock_chat.assert_called_once()
 
     @patch('blog.ai_summary.AIClient.chat', return_value=json.dumps({
         'summary': '短',
@@ -85,6 +87,79 @@ class AISummaryServiceTest(BaseTestCase):
         self.assertFalse(ok)
         self.article.refresh_from_db()
         self.assertEqual(self.article.ai_status, 'failed')
+        self.assertEqual(mock_chat.call_count, 2)
+
+    @patch('blog.ai_summary.AIClient.chat', return_value=json.dumps({
+        'summary': '摘' * 154,
+        'highlights': ['看' * 42, '点' * 45, '短看点'],
+        'audience': '受' * 50,
+        'keywords': ['a', 'b', 'c', 'd', 'e', 'f'],
+    }, ensure_ascii=False))
+    def test_overlong_fields_are_truncated_not_failed(self, mock_chat):
+        """超长字段先截到规格上限：摘要 120、看点/受众 40、关键词最多 5。"""
+        ok = generate_ai_summary(self.article, force=False)
+
+        self.assertTrue(ok)
+        self.article.refresh_from_db()
+        self.assertEqual(self.article.ai_status, 'done')
+        self.assertEqual(len(self.article.ai_summary), 120)
+        self.assertEqual(
+            [len(item) for item in self.article.ai_highlights], [40, 40, 3]
+        )
+        self.assertEqual(len(self.article.ai_audience), 40)
+        self.assertEqual(len(self.article.ai_keywords), 5)
+        mock_chat.assert_called_once()
+
+    @patch('blog.ai_summary.AIClient.chat')
+    def test_short_summary_retries_and_succeeds(self, mock_chat):
+        """摘要不足 80 字 → 更严格提示词重试一次，第二次合格则成功。"""
+        short_payload = json.dumps({
+            'summary': '短' * 20,
+            'highlights': ['看点一', '看点二', '看点三'],
+            'audience': '',
+            'keywords': ['Django', 'Redis', '缓存'],
+        }, ensure_ascii=False)
+        mock_chat.side_effect = [short_payload, VALID_AI_JSON]
+
+        ok = generate_ai_summary(self.article, force=False)
+
+        self.assertTrue(ok)
+        self.article.refresh_from_db()
+        self.assertEqual(self.article.ai_status, 'done')
+        self.assertEqual(mock_chat.call_count, 2)
+
+    @patch('blog.ai_summary.AIClient.chat')
+    def test_short_summary_after_retry_still_fails(self, mock_chat):
+        """两次摘要都不足 80 字 → failed。"""
+        short_payload = json.dumps({
+            'summary': '短' * 20,
+            'highlights': ['看点一', '看点二', '看点三'],
+            'audience': '',
+            'keywords': ['Django', 'Redis', '缓存'],
+        }, ensure_ascii=False)
+        mock_chat.side_effect = [short_payload, short_payload]
+
+        ok = generate_ai_summary(self.article, force=False)
+
+        self.assertFalse(ok)
+        self.article.refresh_from_db()
+        self.assertEqual(self.article.ai_status, 'failed')
+        self.assertEqual(mock_chat.call_count, 2)
+
+    @patch('blog.ai_summary.AIClient.chat')
+    def test_few_keywords_retries_and_succeeds(self, mock_chat):
+        """关键词不足 3 个 → 更严格提示词重试一次，第二次合格则成功。"""
+        payload = json.loads(VALID_AI_JSON)
+        payload['keywords'] = ['Django', 'Redis']
+        few_keywords = json.dumps(payload, ensure_ascii=False)
+        mock_chat.side_effect = [few_keywords, VALID_AI_JSON]
+
+        ok = generate_ai_summary(self.article, force=False)
+
+        self.assertTrue(ok)
+        self.article.refresh_from_db()
+        self.assertEqual(self.article.ai_status, 'done')
+        self.assertEqual(mock_chat.call_count, 2)
 
     @patch('blog.ai_summary.AIClient.chat', return_value=VALID_AI_JSON)
     def test_skip_done_without_force(self, mock_chat):
