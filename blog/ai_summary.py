@@ -47,7 +47,8 @@ def _validate_payload(payload):
     summary = payload.get('summary')
     if not isinstance(summary, str) or not summary.strip():
         return False
-    if len(summary) > 120:
+    # 何君杰: 补上 80 字下限校验（规格 3.4/3.7）
+    if not (80 <= len(summary.strip()) <= 120):
         return False
 
     highlights = payload.get('highlights')
@@ -108,7 +109,7 @@ def generate_ai_summary(article, force=False) -> bool:
     try:
         text = AIClient.chat(messages, temperature=0.2, max_tokens=800)
         payload = _parse_ai_json(text)
-    except (AIClientError, json.JSONDecodeError, Exception) as exc:
+    except (AIClientError, json.JSONDecodeError) as exc:
         # 何君杰: AI 失败/JSON 解析失败都视为 failed，不向外抛
         logger.warning('AI 导读生成失败 article=%s: %s', article.pk, type(exc).__name__)
         article.ai_status = 'failed'

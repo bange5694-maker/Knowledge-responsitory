@@ -14,7 +14,7 @@ from djangoblog.test_base import BaseTestCase
 
 # 一份合法的 AI 返回 JSON，供多个测试复用
 VALID_AI_JSON = json.dumps({
-    'summary': '这篇文章用三个案例讲清了 Django 缓存的分层设计，适合正在做性能优化的后端开发者。',
+    'summary': '这篇文章用三个案例讲清了 Django 缓存的分层设计，包括缓存穿透、缓存击穿以及缓存雪崩的防范策略。它详细分析了 Cache Aside 模式在不同并发场景下的表现，适合正在做性能优化、希望解决高并发下数据一致性问题的 Django 后端开发者阅读。',
     'highlights': [
         '用 Cache Aside 解决读写不一致',
         '用 TTL 兜底防止脏数据常驻',

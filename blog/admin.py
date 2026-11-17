@@ -9,7 +9,6 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 
 # HJJ: AI 导读生成
-from .models import Article, Category, Tag, Links, SideBar, BlogSettings
 from .ai_summary import generate_ai_summary   
 
 # Register your models here.
