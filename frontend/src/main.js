@@ -16,6 +16,7 @@ import htmx from 'htmx.org';
 import { initDarkMode } from './features/darkMode.js';
 import { initCodeCopyFeature } from './components/codeCopy.js';
 import { initLegacyCommentsFeature } from './components/legacyComments.js';
+import './components/aiQa.js';
 
 // 注册Alpine插件
 Alpine.plugin(focus);

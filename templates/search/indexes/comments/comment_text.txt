@@ -1,0 +1,4 @@
+{{ object.article.title }}
+{{ object.author.nickname }}
+{{ object.author.username }}
+{{ object.body }}

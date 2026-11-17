@@ -3,8 +3,9 @@
 
 from django.urls import path
 from django.views.decorators.cache import cache_page
+from django.views.decorators.csrf import ensure_csrf_cookie
 
-from . import views
+from . import ai_views, views
 
 app_name = "blog"
 urlpatterns = [
@@ -22,9 +23,10 @@ urlpatterns = [
     
     # HJJ: 文章详情页路由 - 使用年/月/日/ID的SEO友好格式
     # 例如: /article/2024/01/15/123.html
+    # DH: 设置 csrftoken cookie，供 M5 前端调用 AI 接口
     path(
         r'article/<int:year>/<int:month>/<int:day>/<int:article_id>.html',
-        views.ArticleDetailView.as_view(),
+        ensure_csrf_cookie(views.ArticleDetailView.as_view()),
         name='detailbyid'),
     
     # HJJ: 分类列表路由 - 使用slug作为URL标识
@@ -98,4 +100,16 @@ urlpatterns = [
         r'clean',
         views.clean_cache_view,
         name='clean'),
+
+    # DH: AI 问答接口 - /ai/ask/ 提供占位页与 JSON 问答
+    path(
+        'ai/ask/',
+        ensure_csrf_cookie(ai_views.ai_ask),
+        name='ai_ask'),
+
+    # DH: AI 状态接口 - 告知前端是否启用及文章类型
+    path(
+        'ai/status/',
+        ai_views.ai_status,
+        name='ai_status'),
 ]
