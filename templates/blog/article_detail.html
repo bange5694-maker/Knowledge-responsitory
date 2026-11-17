@@ -63,6 +63,10 @@
                         <div class="mb-6 h-px bg-border/60"></div>
 
                         {# Content #}
+                        {% if article.type == 'a' %}
+                            {% include 'blog/_ai_summary.html' %}
+                        {% endif %}
+
                         <div class="entry-content max-w-full" itemprop="articleBody">
                             {% if article.show_toc %}
                                 {% get_markdown_toc article.body as toc %}
